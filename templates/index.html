@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MonkeyOCR图片识别系统</title>
+    <title>Image Recognition System</title>
     <style>
         * {
             margin: 0;
@@ -179,26 +179,50 @@
             border-bottom: 1px solid #eee;
             font-family: monospace;
             font-size: 0.9em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
         .result-item:last-child {
             border-bottom: none;
+        }
+        
+        .file-name {
+            flex: 1;
+            margin-right: 10px;
+        }
+        
+        .download-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+        
+        .download-btn:hover {
+            background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🐒 MonkeyOCR图片识别系统</h1>
-            <p>基于ModelScope的轻量级文档解析模型</p>
+            <h1>Image Recognition System</h1>
         </div>
         
         <div class="content">
             <form id="uploadForm" enctype="multipart/form-data">
                 <div class="upload-area" id="uploadArea">
                     <div class="upload-icon">📁</div>
-                    <div class="upload-text">点击选择图片或拖拽图片到此处</div>
-                    <div style="color: #999; font-size: 0.9em;">支持 PNG, JPG, JPEG, GIF, BMP, WEBP, PDF 格式</div>
+                    <div class="upload-text">Click to select image or drag image here</div>
                     <input type="file" id="fileInput" name="file" class="file-input" accept="image/*,.pdf">
                 </div>
                 
@@ -207,7 +231,7 @@
                 </div>
                 
                 <div style="text-align: center;">
-                    <button type="submit" class="btn" id="uploadBtn">开始识别</button>
+                    <button type="submit" class="btn" id="uploadBtn">Start Recognition</button>
                 </div>
             </form>
             
@@ -218,14 +242,14 @@
             </div>
             
             <div class="results-section">
-                <h3>模型状态检查</h3>
-                <button class="btn" onclick="checkModelStatus()" style="margin: 10px 0;">检查模型状态</button>
+                <h3>Model Status Check</h3>
+                <button class="btn" onclick="checkModelStatus()" style="margin: 10px 0;">Check Model Status</button>
                 <div id="modelStatus" style="margin: 10px 0; padding: 10px; border-radius: 5px; display: none;"></div>
                 
-                <h3>历史识别结果</h3>
-                <button class="btn" onclick="loadResults()" style="margin: 10px 0;">刷新结果列表</button>
+                <h3>Recognition History</h3>
+                <button class="btn" onclick="loadResults()" style="margin: 10px 0;">Refresh Result List</button>
                 <div class="results-list" id="resultsList">
-                    <div style="text-align: center; color: #999;">点击刷新按钮加载历史结果</div>
+                    <div style="text-align: center; color: #999;">Click refresh button to load history results</div>
                 </div>
             </div>
         </div>
@@ -243,20 +267,20 @@
         const ocrResult = document.getElementById('ocrResult');
         const fileInfo = document.getElementById('fileInfo');
         
-        // 点击上传区域选择文件
+        // Click upload area to select file
         uploadArea.addEventListener('click', () => {
             fileInput.click();
         });
         
-        // 文件选择事件
+        // File selection event
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 const fileName = e.target.files[0].name;
-                uploadArea.querySelector('.upload-text').textContent = `已选择: ${fileName}`;
+                uploadArea.querySelector('.upload-text').textContent = `File selected: ${fileName}`;
             }
         });
         
-        // 拖拽功能
+        // Drag and drop functionality
         uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
             uploadArea.classList.add('dragover');
@@ -274,29 +298,29 @@
             if (files.length > 0) {
                 fileInput.files = files;
                 const fileName = files[0].name;
-                uploadArea.querySelector('.upload-text').textContent = `已选择: ${fileName}`;
+                uploadArea.querySelector('.upload-text').textContent = `File selected: ${fileName}`;
             }
         });
         
-        // 表单提交
+        // Form submission
         uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
             if (!fileInput.files[0]) {
-                alert('请先选择一个图片文件');
+                alert('Please select an image file first');
                 return;
             }
             
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
             
-            // 显示进度条
+            // Show progress bar
             progress.style.display = 'block';
             uploadBtn.disabled = true;
-            uploadBtn.textContent = '识别中...';
+            uploadBtn.textContent = 'Recognizing...';
             result.style.display = 'none';
             
-            // 模拟进度
+            // Simulate progress
             let progressValue = 0;
             const progressInterval = setInterval(() => {
                 progressValue += Math.random() * 15;
@@ -312,7 +336,7 @@
                 
                 const data = await response.json();
                 
-                // 完成进度条
+                // Complete progress bar
                 clearInterval(progressInterval);
                 progressBar.style.width = '100%';
                 
@@ -320,7 +344,7 @@
                     progress.style.display = 'none';
                     progressBar.style.width = '0%';
                     
-                    // 显示结果
+                    // Show result
                     result.style.display = 'block';
                     
                     if (data.success) {
@@ -328,8 +352,9 @@
                         resultMessage.textContent = data.message;
                         ocrResult.textContent = data.ocr_result;
                         fileInfo.innerHTML = `
-                            <strong>上传文件:</strong> ${data.uploaded_file}<br>
-                            <strong>结果文件:</strong> ${data.json_file}
+                            <strong>Uploaded file:</strong> ${data.uploaded_file}<br>
+                            <strong>Result file:</strong> ${data.json_file}<br>
+                            <strong>Recognition model:</strong> ${data.model_info}
                         `;
                     } else {
                         result.className = 'result error';
@@ -339,13 +364,13 @@
                     }
                     
                     uploadBtn.disabled = false;
-                    uploadBtn.textContent = '开始识别';
+                    uploadBtn.textContent = 'Start Recognition';
                     
-                    // 重置表单
+                    // Reset form
                     uploadForm.reset();
-                    uploadArea.querySelector('.upload-text').textContent = '点击选择图片或拖拽图片到此处';
+                    uploadArea.querySelector('.upload-text').textContent = 'Click to select image or drag image here';
                     
-                    // 刷新结果列表
+                    // Refresh result list
                     loadResults();
                 }, 500);
                 
@@ -356,16 +381,16 @@
                 
                 result.style.display = 'block';
                 result.className = 'result error';
-                resultMessage.textContent = '上传失败: ' + error.message;
+                resultMessage.textContent = 'Upload failed: ' + error.message;
                 ocrResult.textContent = '';
                 fileInfo.textContent = '';
                 
                 uploadBtn.disabled = false;
-                uploadBtn.textContent = '开始识别';
+                uploadBtn.textContent = 'Start Recognition';
             }
         });
         
-        // 加载历史结果
+        // Load history results
         async function loadResults() {
             try {
                 const response = await fetch('/results');
@@ -375,17 +400,44 @@
                 
                 if (data.success && data.files.length > 0) {
                     resultsList.innerHTML = data.files.map(file => 
-                        `<div class="result-item">${file}</div>`
+                        `<div class="result-item">
+                            <span class="file-name">${file}</span>
+                            <button class="download-btn" onclick="downloadFile('${file}')" title="Download ${file}">
+                                📥 Download
+                            </button>
+                        </div>`
                     ).join('');
                 } else {
-                    resultsList.innerHTML = '<div style="text-align: center; color: #999;">暂无识别结果</div>';
+                    resultsList.innerHTML = '<div style="text-align: center; color: #999;">No recognition results</div>';
                 }
             } catch (error) {
-                console.error('加载结果列表失败:', error);
+                console.error('Failed to load result list:', error);
+                document.getElementById('resultsList').innerHTML = '<div style="text-align: center; color: #f00;">Loading failed, please check network connection</div>';
             }
         }
         
-        // 检查模型状态
+        // Download file function
+        function downloadFile(filename) {
+            try {
+                // 创建下载链接
+                const downloadUrl = `/download/${encodeURIComponent(filename)}`;
+                
+                // 创建临时链接元素并触发下载
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                console.log(`Downloading file: ${filename}`);
+            } catch (error) {
+                console.error('Download failed:', error);
+                alert(`Download failed: ${error.message}`);
+            }
+        }
+        
+        // Check model status
         async function checkModelStatus() {
             try {
                 const response = await fetch('/model-status');
@@ -394,24 +446,38 @@
                 const statusDiv = document.getElementById('modelStatus');
                 statusDiv.style.display = 'block';
                 
-                if (data.model_loaded) {
+                if (data.monkey_ocr.available) {
                     statusDiv.className = 'result success';
                     statusDiv.innerHTML = `
-                        <strong>✅ 模型状态：</strong>已加载<br>
-                        <strong>模型名称：</strong>${data.model_name}<br>
-                        <strong>模型来源：</strong>${data.model_source}
+                        <strong>✅ Model Status:</strong> Loaded<br>
+                        <strong>Model Name:</strong> ${data.monkey_ocr.model}<br>
+                        <strong>API Base:</strong> ${data.monkey_ocr.api_base}<br>
+                        <strong>Connection Status:</strong> Normal
                     `;
                 } else {
                     statusDiv.className = 'result error';
                     statusDiv.innerHTML = `
-                        <strong>❌ 模型状态：</strong>未加载<br>
-                        <strong>提示：</strong>请检查ModelScope连接或安装MonkeyOCR依赖
+                        <strong>❌ Model Status:</strong> Not loaded<br>
+                        <strong>Status:</strong> ${data.monkey_ocr.status}<br>
+                        <strong>Suggestion:</strong> Please check ModelScope connection or install MonkeyOCR dependencies
                     `;
                 }
             } catch (error) {
-                console.error('检查模型状态失败:', error);
+                console.error('Failed to check model status:', error);
+                const statusDiv = document.getElementById('modelStatus');
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'result error';
+                statusDiv.innerHTML = `
+                    <strong>❌ Check failed:</strong> Cannot connect to server<br>
+                    <strong>Error message:</strong> ${error.message}
+                `;
             }
         }
+        
+        // Auto load result list after page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadResults();
+        });
     </script>
 </body>
 </html>
