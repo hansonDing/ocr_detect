@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MonkeyOCR图片识别系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            border-color: #764ba2;
+            background-color: #f8f9ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background-color: #f0f2ff;
+        }
+        
+        .upload-icon {
+            font-size: 3em;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        
+        .upload-text {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 15px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .progress {
+            width: 100%;
+            height: 6px;
+            background-color: #f0f0f0;
+            border-radius: 3px;
+            margin: 20px 0;
+            overflow: hidden;
+            display: none;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .result.success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .result.error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .ocr-result {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .file-info {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .results-section {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid #eee;
+        }
+        
+        .results-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        
+        .result-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        
+        .result-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐒 MonkeyOCR图片识别系统</h1>
+            <p>基于ModelScope的轻量级文档解析模型</p>
+        </div>
+        
+        <div class="content">
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">点击选择图片或拖拽图片到此处</div>
+                    <div style="color: #999; font-size: 0.9em;">支持 PNG, JPG, JPEG, GIF, BMP, WEBP, PDF 格式</div>
+                    <input type="file" id="fileInput" name="file" class="file-input" accept="image/*,.pdf">
+                </div>
+                
+                <div class="progress" id="progress">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                
+                <div style="text-align: center;">
+                    <button type="submit" class="btn" id="uploadBtn">开始识别</button>
+                </div>
+            </form>
+            
+            <div class="result" id="result">
+                <div id="resultMessage"></div>
+                <div class="ocr-result" id="ocrResult"></div>
+                <div class="file-info" id="fileInfo"></div>
+            </div>
+            
+            <div class="results-section">
+                <h3>模型状态检查</h3>
+                <button class="btn" onclick="checkModelStatus()" style="margin: 10px 0;">检查模型状态</button>
+                <div id="modelStatus" style="margin: 10px 0; padding: 10px; border-radius: 5px; display: none;"></div>
+                
+                <h3>历史识别结果</h3>
+                <button class="btn" onclick="loadResults()" style="margin: 10px 0;">刷新结果列表</button>
+                <div class="results-list" id="resultsList">
+                    <div style="text-align: center; color: #999;">点击刷新按钮加载历史结果</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const progress = document.getElementById('progress');
+        const progressBar = document.getElementById('progressBar');
+        const result = document.getElementById('result');
+        const resultMessage = document.getElementById('resultMessage');
+        const ocrResult = document.getElementById('ocrResult');
+        const fileInfo = document.getElementById('fileInfo');
+        
+        // 点击上传区域选择文件
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        // 文件选择事件
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                const fileName = e.target.files[0].name;
+                uploadArea.querySelector('.upload-text').textContent = `已选择: ${fileName}`;
+            }
+        });
+        
+        // 拖拽功能
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                const fileName = files[0].name;
+                uploadArea.querySelector('.upload-text').textContent = `已选择: ${fileName}`;
+            }
+        });
+        
+        // 表单提交
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!fileInput.files[0]) {
+                alert('请先选择一个图片文件');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            // 显示进度条
+            progress.style.display = 'block';
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = '识别中...';
+            result.style.display = 'none';
+            
+            // 模拟进度
+            let progressValue = 0;
+            const progressInterval = setInterval(() => {
+                progressValue += Math.random() * 15;
+                if (progressValue > 90) progressValue = 90;
+                progressBar.style.width = progressValue + '%';
+            }, 200);
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                // 完成进度条
+                clearInterval(progressInterval);
+                progressBar.style.width = '100%';
+                
+                setTimeout(() => {
+                    progress.style.display = 'none';
+                    progressBar.style.width = '0%';
+                    
+                    // 显示结果
+                    result.style.display = 'block';
+                    
+                    if (data.success) {
+                        result.className = 'result success';
+                        resultMessage.textContent = data.message;
+                        ocrResult.textContent = data.ocr_result;
+                        fileInfo.innerHTML = `
+                            <strong>上传文件:</strong> ${data.uploaded_file}<br>
+                            <strong>结果文件:</strong> ${data.json_file}
+                        `;
+                    } else {
+                        result.className = 'result error';
+                        resultMessage.textContent = data.message;
+                        ocrResult.textContent = '';
+                        fileInfo.textContent = '';
+                    }
+                    
+                    uploadBtn.disabled = false;
+                    uploadBtn.textContent = '开始识别';
+                    
+                    // 重置表单
+                    uploadForm.reset();
+                    uploadArea.querySelector('.upload-text').textContent = '点击选择图片或拖拽图片到此处';
+                    
+                    // 刷新结果列表
+                    loadResults();
+                }, 500);
+                
+            } catch (error) {
+                clearInterval(progressInterval);
+                progress.style.display = 'none';
+                progressBar.style.width = '0%';
+                
+                result.style.display = 'block';
+                result.className = 'result error';
+                resultMessage.textContent = '上传失败: ' + error.message;
+                ocrResult.textContent = '';
+                fileInfo.textContent = '';
+                
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = '开始识别';
+            }
+        });
+        
+        // 加载历史结果
+        async function loadResults() {
+            try {
+                const response = await fetch('/results');
+                const data = await response.json();
+                
+                const resultsList = document.getElementById('resultsList');
+                
+                if (data.success && data.files.length > 0) {
+                    resultsList.innerHTML = data.files.map(file => 
+                        `<div class="result-item">${file}</div>`
+                    ).join('');
+                } else {
+                    resultsList.innerHTML = '<div style="text-align: center; color: #999;">暂无识别结果</div>';
+                }
+            } catch (error) {
+                console.error('加载结果列表失败:', error);
+            }
+        }
+        
+        // 检查模型状态
+        async function checkModelStatus() {
+            try {
+                const response = await fetch('/model-status');
+                const data = await response.json();
+                
+                const statusDiv = document.getElementById('modelStatus');
+                statusDiv.style.display = 'block';
+                
+                if (data.model_loaded) {
+                    statusDiv.className = 'result success';
+                    statusDiv.innerHTML = `
+                        <strong>✅ 模型状态：</strong>已加载<br>
+                        <strong>模型名称：</strong>${data.model_name}<br>
+                        <strong>模型来源：</strong>${data.model_source}
+                    `;
+                } else {
+                    statusDiv.className = 'result error';
+                    statusDiv.innerHTML = `
+                        <strong>❌ 模型状态：</strong>未加载<br>
+                        <strong>提示：</strong>请检查ModelScope连接或安装MonkeyOCR依赖
+                    `;
+                }
+            } catch (error) {
+                console.error('检查模型状态失败:', error);
+            }
+        }
+    </script>
+</body>
+</html>
