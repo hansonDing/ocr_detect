@@ -154,6 +154,59 @@
             overflow-y: auto;
         }
         
+        .batch-results {
+            margin-top: 15px;
+        }
+        
+        .batch-summary {
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .batch-item {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .batch-item.success {
+            border-left: 4px solid #28a745;
+        }
+        
+        .batch-item.failed {
+            border-left: 4px solid #dc3545;
+        }
+        
+        .batch-item-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .status-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status-failed {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
         .file-info {
             margin-top: 15px;
             font-size: 0.9em;
@@ -222,8 +275,17 @@
             <form id="uploadForm" enctype="multipart/form-data">
                 <div class="upload-area" id="uploadArea">
                     <div class="upload-icon">📁</div>
-                    <div class="upload-text">Click to select image or drag image here</div>
-                    <input type="file" id="fileInput" name="file" class="file-input" accept="image/*,.pdf">
+                    <div class="upload-text">Click to select image/ZIP file or drag file here</div>
+                    <input type="file" id="fileInput" name="file" class="file-input" accept="image/*,.pdf,.zip">
+                </div>
+                
+                <div class="format-selection" style="margin: 20px 0; text-align: center;">
+                    <label for="outputFormat" style="display: block; margin-bottom: 8px; font-weight: bold; color: #333;">Select Output Format:</label>
+                    <select id="outputFormat" name="output_format" style="padding: 8px 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px; background: white; min-width: 120px;">
+                        <option value="json">JSON Format</option>
+                    <option value="txt">TXT Format</option>
+                    <option value="xlsx">XLSX Format</option>
+                    </select>
                 </div>
                 
                 <div class="progress" id="progress">
@@ -307,12 +369,16 @@
             e.preventDefault();
             
             if (!fileInput.files[0]) {
-                alert('Please select an image file first');
+                alert('Please select an image or ZIP file first');
                 return;
             }
             
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
+            
+            // Add selected output format
+            const outputFormat = document.getElementById('outputFormat').value;
+            formData.append('output_format', outputFormat);
             
             // Show progress bar
             progress.style.display = 'block';
@@ -350,12 +416,47 @@
                     if (data.success) {
                         result.className = 'result success';
                         resultMessage.textContent = data.message;
-                        ocrResult.textContent = data.ocr_result;
-                        fileInfo.innerHTML = `
-                            <strong>Uploaded file:</strong> ${data.uploaded_file}<br>
-                            <strong>Result file:</strong> ${data.json_file}<br>
-                            <strong>Recognition model:</strong> ${data.model_info}
-                        `;
+                        
+                        if (data.file_type === 'zip') {
+                            // Display ZIP batch processing results
+                            const batchResults = data.batch_results;
+                            ocrResult.innerHTML = `
+                                <div class="batch-results">
+                                    <div class="batch-summary">
+                                        <h4>📦 ZIP File Processing Summary</h4>
+                                        <p><strong>Output Directory:</strong> ${data.output_directory}</p>
+                                        <p><strong>Total Images:</strong> ${batchResults.total_images}</p>
+                                        <p><strong>Successfully Processed:</strong> ${batchResults.success_count}</p>
+                                        <p><strong>Failed:</strong> ${batchResults.failed_count}</p>
+                                    </div>
+                                    <h5>Processing Details:</h5>
+                                    ${batchResults.processed_results.map(item => `
+                                        <div class="batch-item ${item.status}">
+                                            <div class="batch-item-header">
+                                                <span>📄 ${item.image_file}</span>
+                                                <span class="status-badge status-${item.status}">${item.status.toUpperCase()}</span>
+                                            </div>
+                                            <div><strong>Model:</strong> ${item.model_used}</div>
+                                            ${item.result_file ? `<div><strong>Result File:</strong> ${item.result_file} (${item.output_format.toUpperCase()})</div>` : ''}
+                                            <div class="ocr-result" style="margin-top: 8px; max-height: 150px;">${item.ocr_result}</div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            `;
+                            fileInfo.innerHTML = `
+                                <strong>Uploaded file:</strong> ${data.uploaded_file}<br>
+                                <strong>File type:</strong> ZIP Archive (${data.output_format.toUpperCase()})<br>
+                                <strong>Output directory:</strong> ${data.output_directory}
+                            `;
+                        } else {
+                            // Display single image processing result
+                            ocrResult.textContent = data.ocr_result;
+                            fileInfo.innerHTML = `
+                                <strong>Uploaded file:</strong> ${data.uploaded_file}<br>
+                                <strong>Result file:</strong> ${data.result_file} (${data.output_format.toUpperCase()})<br>
+                                <strong>Recognition model:</strong> ${data.model_info}
+                            `;
+                        }
                     } else {
                         result.className = 'result error';
                         resultMessage.textContent = data.message;
@@ -368,7 +469,7 @@
                     
                     // Reset form
                     uploadForm.reset();
-                    uploadArea.querySelector('.upload-text').textContent = 'Click to select image or drag image here';
+                    uploadArea.querySelector('.upload-text').textContent = 'Click to select image/ZIP file or drag file here';
                     
                     // Refresh result list
                     loadResults();
@@ -398,15 +499,67 @@
                 
                 const resultsList = document.getElementById('resultsList');
                 
-                if (data.success && data.files.length > 0) {
-                    resultsList.innerHTML = data.files.map(file => 
-                        `<div class="result-item">
-                            <span class="file-name">${file}</span>
-                            <button class="download-btn" onclick="downloadFile('${file}')" title="Download ${file}">
-                                📥 Download
-                            </button>
-                        </div>`
-                    ).join('');
+                if (data.success && (data.results.single_files.length > 0 || data.results.batch_directories.length > 0)) {
+                    let html = '';
+                    
+                    // Display batch processing directories
+                    if (data.results.batch_directories.length > 0) {
+                        html += '<div style="margin-bottom: 20px;"><h4 style="color: #333; margin-bottom: 10px;">📦 Batch Processing Results</h4>';
+                        data.results.batch_directories.forEach(dir => {
+                            const createdDate = new Date(dir.created_time * 1000).toLocaleString();
+                            html += `
+                                <div class="batch-directory" style="border: 1px solid #ddd; border-radius: 8px; margin-bottom: 15px; padding: 15px; background: #f9f9f9;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                        <h5 style="margin: 0; color: #2c5aa0;">📁 ${dir.name}</h5>
+                                        <span style="font-size: 0.9em; color: #666;">${createdDate}</span>
+                                    </div>
+                                    <div style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+                                        Total files: ${dir.files.length}
+                                    </div>
+                                    <div class="batch-files">`;
+                            
+                            dir.files.forEach(file => {
+                                const modifiedDate = new Date(file.modified_time * 1000).toLocaleString();
+                                const fileSize = (file.size / 1024).toFixed(1) + ' KB';
+                                html += `
+                                    <div class="result-item" style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 4px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div>
+                                                <span class="file-name" style="font-weight: 500;">${file.name}</span>
+                                                <div style="font-size: 0.8em; color: #888; margin-top: 2px;">
+                                                    ${fileSize} • ${modifiedDate}
+                                                </div>
+                                            </div>
+                                            <button class="download-btn" onclick="downloadBatchFile('${dir.name}', '${file.name}')" title="Download ${file.name}">
+                                                📥 Download
+                                            </button>
+                                        </div>
+                                    </div>`;
+                            });
+                            
+                            html += `
+                                    </div>
+                                </div>`;
+                        });
+                        html += '</div>';
+                    }
+                    
+                    // Display single files
+                    if (data.results.single_files.length > 0) {
+                        html += '<div><h4 style="color: #333; margin-bottom: 10px;">📄 Individual Processing Results</h4>';
+                        data.results.single_files.forEach(file => {
+                            html += `
+                                <div class="result-item">
+                                    <span class="file-name">${file}</span>
+                                    <button class="download-btn" onclick="downloadFile('${file}')" title="Download ${file}">
+                                        📥 Download
+                                    </button>
+                                </div>`;
+                        });
+                        html += '</div>';
+                    }
+                    
+                    resultsList.innerHTML = html;
                 } else {
                     resultsList.innerHTML = '<div style="text-align: center; color: #999;">No recognition results</div>';
                 }
@@ -416,13 +569,13 @@
             }
         }
         
-        // Download file function
+        // Download file function for single files
         function downloadFile(filename) {
             try {
-                // 创建下载链接
+                // Create download link
                 const downloadUrl = `/download/${encodeURIComponent(filename)}`;
                 
-                // 创建临时链接元素并触发下载
+                // Create temporary link element and trigger download
                 const link = document.createElement('a');
                 link.href = downloadUrl;
                 link.download = filename;
@@ -433,6 +586,27 @@
                 console.log(`Downloading file: ${filename}`);
             } catch (error) {
                 console.error('Download failed:', error);
+                alert(`Download failed: ${error.message}`);
+            }
+        }
+        
+        // Download file function for batch processing files
+        function downloadBatchFile(directory, filename) {
+            try {
+                // Create download link
+                const downloadUrl = `/download/${encodeURIComponent(directory)}/${encodeURIComponent(filename)}`;
+                
+                // Create temporary link element and trigger download
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                console.log(`Downloading batch file: ${directory}/${filename}`);
+            } catch (error) {
+                console.error('Batch download failed:', error);
                 alert(`Download failed: ${error.message}`);
             }
         }
