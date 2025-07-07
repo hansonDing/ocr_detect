@@ -1,5 +1,7 @@
 import os
 import json
+import zipfile
+import shutil
 from datetime import datetime
 from flask import Flask, request, render_template, jsonify, send_file
 from werkzeug.utils import secure_filename
@@ -17,7 +19,8 @@ app.secret_key = 'your-secret-key-here'  # Please change to a secure key
 # Configuration
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'output'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'pdf'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'pdf', 'zip'}
+IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
 MAX_FILE_SIZE = 16 * 1024 * 1024  # 16MB
 
 # Create necessary directories
@@ -69,6 +72,117 @@ def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def is_image_file(filename):
+    """Check if file is an image"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in IMAGE_EXTENSIONS
+
+def extract_zip_file(zip_path, extract_to):
+    """Extract ZIP file and return list of image files"""
+    try:
+        image_files = []
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            # Get list of files in ZIP
+            file_list = zip_ref.namelist()
+            
+            # Filter image files
+            for file_name in file_list:
+                if is_image_file(file_name) and not file_name.startswith('__MACOSX/'):
+                    # Extract file
+                    zip_ref.extract(file_name, extract_to)
+                    extracted_path = os.path.join(extract_to, file_name)
+                    image_files.append(extracted_path)
+        
+        return image_files, None
+    except Exception as e:
+        return [], f"ZIP extraction failed: {str(e)}"
+
+def process_zip_batch(zip_path, zip_filename, output_format='json'):
+    """Process all images in a ZIP file"""
+    try:
+        # Create temporary extraction directory
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        temp_extract_dir = os.path.join(UPLOAD_FOLDER, f"temp_{timestamp}")
+        os.makedirs(temp_extract_dir, exist_ok=True)
+        
+        # Extract ZIP file
+        image_files, error = extract_zip_file(zip_path, temp_extract_dir)
+        if error:
+            return None, error
+        
+        if not image_files:
+            return None, "No image files found in ZIP archive"
+        
+        # Create output directory for this ZIP
+        zip_name_without_ext = os.path.splitext(zip_filename)[0]
+        output_dir = os.path.join(OUTPUT_FOLDER, f"{zip_name_without_ext}_{timestamp}")
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Process each image
+        results = []
+        for image_path in image_files:
+            try:
+                # Get relative filename for JSON naming
+                rel_path = os.path.relpath(image_path, temp_extract_dir)
+                filename_without_ext = os.path.splitext(os.path.basename(rel_path))[0]
+                
+                # Perform OCR
+                ocr_result, model_used = perform_ocr(image_path)
+                
+                # Save result to specified format in the ZIP-specific output directory
+                # Temporarily change OUTPUT_FOLDER to the ZIP-specific directory
+                original_output_folder = OUTPUT_FOLDER
+                globals()['OUTPUT_FOLDER'] = output_dir
+                
+                try:
+                    result_path = save_result_to_file(filename_without_ext, ocr_result, rel_path, model_used, output_format)
+                    result_filename = os.path.basename(result_path)
+                finally:
+                    # Restore original OUTPUT_FOLDER
+                    globals()['OUTPUT_FOLDER'] = original_output_folder
+                
+                results.append({
+                    "image_file": rel_path,
+                    "result_file": result_filename,
+                    "output_format": output_format,
+                    "ocr_result": ocr_result,
+                    "model_used": model_used,
+                    "status": "success" if "failed" not in ocr_result else "failed"
+                })
+                
+            except Exception as e:
+                results.append({
+                    "image_file": os.path.relpath(image_path, temp_extract_dir),
+                    "result_file": None,
+                    "output_format": output_format,
+                    "ocr_result": f"Processing failed: {str(e)}",
+                    "model_used": "None",
+                    "status": "failed"
+                })
+        
+        # Clean up temporary directory
+        try:
+            shutil.rmtree(temp_extract_dir)
+        except:
+            pass
+        
+        return {
+            "output_directory": os.path.basename(output_dir),
+            "total_images": len(image_files),
+            "processed_results": results,
+            "success_count": len([r for r in results if r["status"] == "success"]),
+            "failed_count": len([r for r in results if r["status"] == "failed"])
+        }, None
+        
+    except Exception as e:
+        # Clean up on error
+        try:
+            if 'temp_extract_dir' in locals():
+                shutil.rmtree(temp_extract_dir)
+        except:
+            pass
+        return None, f"ZIP processing failed: {str(e)}"
 
 def image_to_base64(image_path):
     """Convert image to base64 encoding"""
@@ -168,28 +282,94 @@ def perform_ocr(image_path):
     result = ocr_with_basic(image_path)
     return result, "Basic"
 
-def save_result_to_json(filename, ocr_result, original_filename, model_used):
-    """Save OCR result to JSON file"""
+def save_result_to_file(filename, ocr_result, original_filename, model_used, output_format='json'):
+    """Save OCR result to specified format file"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    json_filename = f"{filename}_{timestamp}.json"
-    json_path = os.path.join(OUTPUT_FOLDER, json_filename)
     
-    result_data = {
-        "timestamp": datetime.now().isoformat(),
-        "original_filename": original_filename,
-        "ocr_result": ocr_result,
-        "processing_info": {
-            "model": model_used,
-            "status": "success" if "failed" not in ocr_result else "failed",
-            "api_endpoint": MONKEY_OCR_API_BASE if model_used == "MonkeyOCR API" else "Local",
-            "model_name": MONKEY_OCR_MODEL if model_used == "MonkeyOCR API" else model_used
+    if output_format == 'json':
+        result_filename = f"{filename}_{timestamp}.json"
+        result_path = os.path.join(OUTPUT_FOLDER, result_filename)
+        
+        result_data = {
+            "timestamp": datetime.now().isoformat(),
+            "original_filename": original_filename,
+            "ocr_result": ocr_result,
+            "processing_info": {
+                "model": model_used,
+                "status": "success" if "failed" not in ocr_result else "failed",
+                "api_endpoint": MONKEY_OCR_API_BASE if model_used == "MonkeyOCR API" else "Local",
+                "model_name": MONKEY_OCR_MODEL if model_used == "MonkeyOCR API" else model_used
+            }
         }
-    }
+        
+        with open(result_path, 'w', encoding='utf-8') as f:
+            json.dump(result_data, f, ensure_ascii=False, indent=2)
+            
+    elif output_format == 'txt':
+        result_filename = f"{filename}_{timestamp}.txt"
+        result_path = os.path.join(OUTPUT_FOLDER, result_filename)
+        
+        with open(result_path, 'w', encoding='utf-8') as f:
+            f.write(f"Recognition Time: {datetime.now().isoformat()}\n")
+            f.write(f"Original Filename: {original_filename}\n")
+            f.write(f"Recognition Model: {model_used}\n")
+            f.write(f"Processing Status: {'Success' if 'failed' not in ocr_result else 'Failed'}\n")
+            f.write("\n")
+            f.write("Recognition Result:\n")
+            f.write(ocr_result)
+            
+    elif output_format == 'xlsx':
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Font, Alignment
+            
+            result_filename = f"{filename}_{timestamp}.xlsx"
+            result_path = os.path.join(OUTPUT_FOLDER, result_filename)
+            
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "OCR Recognition Result"
+            
+            # Set title style
+            title_font = Font(bold=True, size=12)
+            
+            # Add headers and data
+            ws['A1'] = "Item"
+            ws['B1'] = "Content"
+            ws['A1'].font = title_font
+            ws['B1'].font = title_font
+            
+            ws['A2'] = "Recognition Time"
+            ws['B2'] = datetime.now().isoformat()
+            
+            ws['A3'] = "Original Filename"
+            ws['B3'] = original_filename
+            
+            ws['A4'] = "Recognition Model"
+            ws['B4'] = model_used
+            
+            ws['A5'] = "Processing Status"
+            ws['B5'] = "Success" if "failed" not in ocr_result else "Failed"
+            
+            ws['A6'] = "Recognition Result"
+            ws['B6'] = ocr_result
+            
+            # Set column width
+            ws.column_dimensions['A'].width = 15
+            ws.column_dimensions['B'].width = 50
+            
+            # Set text wrapping
+            for row in ws.iter_rows(min_row=2, max_row=6, min_col=2, max_col=2):
+                for cell in row:
+                    cell.alignment = Alignment(wrap_text=True, vertical='top')
+            
+            wb.save(result_path)
+            
+        except ImportError:
+            # If openpyxl is not installed, fallback to JSON format
+            return save_result_to_file(filename, ocr_result, original_filename, model_used, 'json')
     
-    with open(json_path, 'w', encoding='utf-8') as f:
-        json.dump(result_data, f, ensure_ascii=False, indent=2)
-    
-    return json_path
+    return result_path
 
 @app.route('/')
 def index():
@@ -212,26 +392,61 @@ def upload_file():
             filename = secure_filename(file.filename)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename_without_ext = os.path.splitext(filename)[0]
-            file_extension = os.path.splitext(filename)[1]
+            file_extension = os.path.splitext(filename)[1].lower()
             new_filename = f"{filename_without_ext}_{timestamp}{file_extension}"
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], new_filename)
             file.save(file_path)
             
-            ocr_result, model_used = perform_ocr(file_path)
-            json_path = save_result_to_json(filename_without_ext, ocr_result, filename, model_used)
-            
-            return jsonify({
-                'success': True,
-                'message': 'OCR recognition completed',
-                'ocr_result': ocr_result,
-                'json_file': os.path.basename(json_path),
-                'uploaded_file': new_filename,
-                'model_info': model_used,
-                'api_info': {
-                    'endpoint': MONKEY_OCR_API_BASE if model_used == "MonkeyOCR API" else "Local",
-                    'model': MONKEY_OCR_MODEL if model_used == "MonkeyOCR API" else model_used
-                }
-            })
+            # Check if uploaded file is a ZIP
+            if file_extension == '.zip':
+                # Get output format from form data
+                output_format = request.form.get('output_format', 'json')
+                
+                # Process ZIP file
+                batch_result, error = process_zip_batch(file_path, filename, output_format)
+                
+                if error:
+                    return jsonify({
+                        'success': False,
+                        'message': f'ZIP processing failed: {error}'
+                    })
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'ZIP file processed successfully in {output_format.upper()} format. {batch_result["success_count"]} images processed, {batch_result["failed_count"]} failed.',
+                    'file_type': 'zip',
+                    'output_format': output_format,
+                    'uploaded_file': new_filename,
+                    'output_directory': batch_result['output_directory'],
+                    'batch_results': {
+                        'total_images': batch_result['total_images'],
+                        'success_count': batch_result['success_count'],
+                        'failed_count': batch_result['failed_count'],
+                        'processed_results': batch_result['processed_results']
+                    }
+                })
+            else:
+                # Get output format from form data
+                output_format = request.form.get('output_format', 'json')
+                
+                # Process single image file
+                ocr_result, model_used = perform_ocr(file_path)
+                result_path = save_result_to_file(filename_without_ext, ocr_result, filename, model_used, output_format)
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'OCR recognition completed, saved as {output_format.upper()} format',
+                    'file_type': 'image',
+                    'ocr_result': ocr_result,
+                    'result_file': os.path.basename(result_path),
+                    'output_format': output_format,
+                    'uploaded_file': new_filename,
+                    'model_info': model_used,
+                    'api_info': {
+                        'endpoint': MONKEY_OCR_API_BASE if model_used == "MonkeyOCR API" else "Local",
+                        'model': MONKEY_OCR_MODEL if model_used == "MonkeyOCR API" else model_used
+                    }
+                })
             
         except Exception as e:
             return jsonify({
@@ -247,13 +462,52 @@ def upload_file():
 
 @app.route('/results')
 def list_results():
-    """List all OCR result files"""
+    """List all OCR result files and batch processing directories"""
     try:
-        json_files = [f for f in os.listdir(OUTPUT_FOLDER) if f.endswith('.json')]
-        json_files.sort(reverse=True)
+        results = {
+            'single_files': [],
+            'batch_directories': []
+        }
+        
+        # Scan output directory
+        for item in os.listdir(OUTPUT_FOLDER):
+            item_path = os.path.join(OUTPUT_FOLDER, item)
+            
+            if os.path.isfile(item_path) and (item.endswith('.json') or item.endswith('.txt') or item.endswith('.xlsx')):
+                # Single result files (JSON, TXT, XLSX)
+                results['single_files'].append(item)
+            elif os.path.isdir(item_path):
+                # Batch processing directories
+                dir_info = {
+                    'name': item,
+                    'files': [],
+                    'created_time': os.path.getctime(item_path)
+                }
+                
+                # List result files in the directory (JSON, TXT, XLSX)
+                try:
+                    for file in os.listdir(item_path):
+                        if file.endswith('.json') or file.endswith('.txt') or file.endswith('.xlsx'):
+                            file_path = os.path.join(item_path, file)
+                            dir_info['files'].append({
+                                'name': file,
+                                'size': os.path.getsize(file_path),
+                                'modified_time': os.path.getmtime(file_path)
+                            })
+                    
+                    # Sort files by modification time (newest first)
+                    dir_info['files'].sort(key=lambda x: x['modified_time'], reverse=True)
+                    results['batch_directories'].append(dir_info)
+                except Exception as e:
+                    print(f"Error reading directory {item}: {e}")
+        
+        # Sort single files and directories by creation time (newest first)
+        results['single_files'].sort(reverse=True)
+        results['batch_directories'].sort(key=lambda x: x['created_time'], reverse=True)
+        
         return jsonify({
             'success': True,
-            'files': json_files
+            'results': results
         })
     except Exception as e:
         return jsonify({
@@ -263,24 +517,78 @@ def list_results():
 
 @app.route('/download/<filename>')
 def download_file(filename):
-    """Download JSON result file"""
+    """Download result file from root output directory"""
     try:
-        # 安全检查：确保文件名只包含JSON文件且在output目录中
-        if not filename.endswith('.json'):
+        # Security check: ensure filename contains only supported file formats
+        if not (filename.endswith('.json') or filename.endswith('.txt') or filename.endswith('.xlsx')):
             return jsonify({'success': False, 'message': 'Invalid file type'}), 400
         
         file_path = os.path.join(OUTPUT_FOLDER, filename)
         
-        # 检查文件是否存在
+        # Check if file exists
         if not os.path.exists(file_path):
             return jsonify({'success': False, 'message': 'File not found'}), 404
         
-        # 发送文件
+        # Set MIME type based on file type
+        if filename.endswith('.json'):
+            mimetype = 'application/json'
+        elif filename.endswith('.txt'):
+            mimetype = 'text/plain'
+        elif filename.endswith('.xlsx'):
+            mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        
+        # Send file
         return send_file(
             file_path,
             as_attachment=True,
             download_name=filename,
-            mimetype='application/json'
+            mimetype=mimetype
+        )
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Download failed: {str(e)}'
+        }), 500
+
+@app.route('/download/<directory>/<filename>')
+def download_batch_file(directory, filename):
+    """Download result file from batch processing directory"""
+    try:
+        # Security check: ensure filename contains only supported file formats
+        if not (filename.endswith('.json') or filename.endswith('.txt') or filename.endswith('.xlsx')):
+            return jsonify({'success': False, 'message': 'Invalid file type'}), 400
+        
+        # Security check: prevent path traversal attacks
+        if '..' in directory or '/' in directory or '\\' in directory:
+            return jsonify({'success': False, 'message': 'Invalid directory name'}), 400
+        
+        # Build file path
+        dir_path = os.path.join(OUTPUT_FOLDER, directory)
+        file_path = os.path.join(dir_path, filename)
+        
+        # Check if directory exists
+        if not os.path.exists(dir_path) or not os.path.isdir(dir_path):
+            return jsonify({'success': False, 'message': 'Directory not found'}), 404
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            return jsonify({'success': False, 'message': 'File not found'}), 404
+        
+        # Set MIME type based on file type
+        if filename.endswith('.json'):
+            mimetype = 'application/json'
+        elif filename.endswith('.txt'):
+            mimetype = 'text/plain'
+        elif filename.endswith('.xlsx'):
+            mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        
+        # Send file
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=filename,
+            mimetype=mimetype
         )
         
     except Exception as e:
