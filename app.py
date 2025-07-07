@@ -208,7 +208,7 @@ def ocr_with_monkey_api(image_path):
                     "content": [
                         {
                             "type": "text",
-                            "text": "Please recognize all text content in this image, including text, tables, formulas, etc. Please output in the following format:\n1. Complete recognized text content\n2. If there are tables, please maintain table structure\n3. If there are special formats (such as titles, lists, etc.), please mark them\n4. Please ensure text accuracy and completeness"
+                            "text": "Please recognize all text content in this image and output it exactly as it appears in the original image layout. Requirements:\n1. Preserve the exact spatial layout and formatting of the original image\n2. Maintain all spacing, indentation, line breaks, and alignment as shown\n3. For tables: preserve column alignment and row structure using spaces or tabs\n4. For multi-column text: maintain the column layout and reading order\n5. For titles, headings, and special formatting: preserve their visual hierarchy and positioning\n6. Keep all original punctuation, symbols, and special characters\n7. Do not add any explanatory text or formatting markers - output only the recognized content in its original layout\n8. If text appears in different sizes or styles, maintain the relative positioning but output as plain text\n9. Preserve any mathematical formulas or equations in their original format\n10. Ensure the output can be directly used to recreate the visual layout of the original document"
                         },
                         {
                             "type": "image_url",
