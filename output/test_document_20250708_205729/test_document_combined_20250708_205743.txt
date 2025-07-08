@@ -1,0 +1,43 @@
+Recognition Time: 2025-07-08T20:57:43.600002
+Original Filename: test_document.pdf - All Pages
+Recognition Model: OCR API
+Processing Status: Success
+
+Recognition Result:
+=== Page 1 ===
+Test Document for OCR Processing
+
+Customer Name: John Smith
+Customer ID: CS123456
+Transaction ID: TXN789012
+Transaction Amount: $1,250.00
+Transaction Date: 2024-01-15
+Account Number: 4567-8901-2345
+Bank Name: Test Bank
+
+This is a test document created to verify the PDF processing functionality of the OCR system. It contains sample transaction information that should be extracted by the OCR engine.
+
+Transaction History:
+
+| Date | Amount | Description |
+|------|--------|-------------|
+| 2024-01-15 | $1,250.00 | Payment Received |
+| 2024-01-10 | $500.00 | Deposit |
+| 2024-01-05 | $75.00 | Service Fee |
+
+=== Page 2 ===
+Page 2 - Additional Information
+
+Customer Address:
+
+123 Main Street
+Anytown, ST 12345
+United States
+
+Contact Information:
+
+Phone: (555) 123-4567
+Email: john.smith@email.com
+
+This is the second page of the test document.
+It demonstrates multi-page PDF processing capabilities of the OCR system.

@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-07-08T20:57:00.181523",
+  "original_filename": "test_document.pdf - Page 1",
+  "ocr_result": "Test Document for OCR Processing\n\nCustomer Name: John Smith\nCustomer ID: CS123456\nTransaction ID: TXN789012\nTransaction Amount: $1,250.00\nTransaction Date: 2024-01-15\nAccount Number: 4567-8901-2345\nBank Name: Test Bank\n\nThis is a test document created to verify\nthe PDF processing functionality of the OCR system.\nIt contains sample transaction information\nthat should be extracted by the OCR engine.\n\nTransaction History:\n\n| Date | Amount | Description |\n|------|--------|-------------|\n| 2024-01-15 | $1,250.00 | Payment Received |\n| 2024-01-10 | $500.00 | Deposit |\n| 2024-01-05 | $75.00 | Service Fee |",
+  "processing_info": {
+    "model": "OCR API",
+    "status": "success",
+    "api_endpoint": "https://api-inference.modelscope.cn/v1",
+    "model_name": "Qwen/Qwen2-VL-7B-Instruct"
+  }
+}

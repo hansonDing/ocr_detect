@@ -665,14 +665,42 @@ def upload_file():
                         'message': f'PDF processing failed: {error}'
                     })
                 
+                # Extract key information from combined OCR text and save to database
+                extracted_info = None
+                record_id = None
+                extracted_count = 0
+                
+                if pdf_result and pdf_result.get('combined_ocr_text'):
+                    try:
+                        # Extract key information from combined OCR text
+                        extracted_info = extract_key_information(pdf_result['combined_ocr_text'])
+                        
+                        # Save to database
+                        record_id = save_to_database(
+                            filename=filename,
+                            file_path=file_path,
+                            ocr_text=pdf_result['combined_ocr_text'],
+                            extracted_info=extracted_info,
+                            model_used=pdf_result['processed_results'][0]['model_used'] if pdf_result['processed_results'] else 'Unknown'
+                        )
+                        
+                        # Count extracted fields
+                        extracted_count = sum(1 for v in extracted_info.values() if v is not None)
+                        
+                    except Exception as e:
+                        print(f"Database storage failed for PDF: {str(e)}")
+                
                 return jsonify({
                     'success': True,
-                    'message': f'PDF file processed successfully in {output_format.upper()} format. {pdf_result["success_count"]} pages processed, {pdf_result["failed_count"]} failed.',
+                    'message': f'PDF file processed successfully in {output_format.upper()} format. {pdf_result["success_count"]} pages processed, {pdf_result["failed_count"]} failed. {extracted_count} key fields extracted and saved to database.',
                     'file_type': 'pdf',
                     'output_format': output_format,
                     'uploaded_file': new_filename,
                     'output_directory': pdf_result['output_directory'],
                     'combined_result_file': pdf_result['combined_result_file'],
+                    'extracted_info': extracted_info,
+                    'record_id': record_id,
+                    'extracted_fields_count': extracted_count,
                     'pdf_results': {
                         'total_pages': pdf_result['total_pages'],
                         'success_count': pdf_result['success_count'],

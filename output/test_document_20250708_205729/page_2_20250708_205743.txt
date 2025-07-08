@@ -1,0 +1,21 @@
+Recognition Time: 2025-07-08T20:57:43.596862
+Original Filename: test_document.pdf - Page 2
+Recognition Model: OCR API
+Processing Status: Success
+
+Recognition Result:
+Page 2 - Additional Information
+
+Customer Address:
+
+123 Main Street
+Anytown, ST 12345
+United States
+
+Contact Information:
+
+Phone: (555) 123-4567
+Email: john.smith@email.com
+
+This is the second page of the test document.
+It demonstrates multi-page PDF processing capabilities of the OCR system.
