@@ -1,0 +1,17 @@
+Recognition Time: 2025-07-08T19:59:14.505262
+Original Filename: test_pdf.jpg
+Recognition Model: OCR API
+Processing Status: Success
+
+Recognition Result:
+Client Payment Report Mock
+
+| FieldName | Value |
+| --- | --- |
+| Customer Name | Wu Gang |
+| Customer ID | 1050843 |
+| Transaction ID | 5000078826 |
+| Transaction Amount | 6750.00 |
+| Payment Date | 2025-01-05 |
+| Document Timestamp | 2025-07-08 18:50:48 |
+| Customer Country | US |

@@ -1,0 +1,25 @@
+{
+  "api_info": {
+    "endpoint": "https://api-inference.modelscope.cn/v1",
+    "model": "Qwen/Qwen2-VL-7B-Instruct"
+  },
+  "extracted_fields_count": 7,
+  "extracted_info": {
+    "customer_country": "US",
+    "customer_id": "1050843",
+    "customer_name": "Wu Gang",
+    "document_timestamp": "2025-07-08 18:50:48",
+    "payment_date": "2025-01-05",
+    "transaction_amount": "6750.00",
+    "transaction_id": "5000078826"
+  },
+  "file_type": "image",
+  "message": "OCR recognition completed, saved as JSON format. 7 key fields extracted and saved to database.",
+  "model_info": "OCR API",
+  "ocr_result": "Client Payment Report Mock\n\n| FieldName | Value |\n| --- | --- |\n| Customer Name | Wu Gang |\n| Customer ID | 1050843 |\n| Transaction ID | 5000078826 |\n| Transaction Amount | 6750.00 |\n| Payment Date | 2025-01-05 |\n| Document Timestamp | 2025-07-08 18:50:48 |\n| Customer Country | US |",
+  "output_format": "json",
+  "record_id": 19,
+  "result_file": "test_pdf_20250708_195045_20250708_195617.json",
+  "success": true,
+  "uploaded_file": "test_pdf_20250708_195045_20250708_195604.jpg"
+}

@@ -230,7 +230,7 @@ def ocr_with_api(image_path, image_type='document'):
                     ]
                 }
             ],
-            max_tokens=4096,
+            max_tokens=2000,
             temperature=0.1
         )
         

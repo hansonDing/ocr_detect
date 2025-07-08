@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-07-08T19:56:17.372167",
+  "original_filename": "test_pdf_20250708_195045.jpg",
+  "ocr_result": "Client Payment Report Mock\n\n| FieldName | Value |\n| --- | --- |\n| Customer Name | Wu Gang |\n| Customer ID | 1050843 |\n| Transaction ID | 5000078826 |\n| Transaction Amount | 6750.00 |\n| Payment Date | 2025-01-05 |\n| Document Timestamp | 2025-07-08 18:50:48 |\n| Customer Country | US |",
+  "processing_info": {
+    "model": "OCR API",
+    "status": "success",
+    "api_endpoint": "https://api-inference.modelscope.cn/v1",
+    "model_name": "Qwen/Qwen2-VL-7B-Instruct"
+  }
+}

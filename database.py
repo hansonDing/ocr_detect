@@ -37,7 +37,7 @@ def init_database():
     print(f"Database initialized at: {DB_PATH}")
 
 def extract_key_information(ocr_text: str) -> Dict[str, Optional[str]]:
-    """Extract key information from OCR text"""
+    """Extract key information from OCR text using regex patterns"""
     # Initialize result dictionary
     extracted_info = {
         'customer_name': None,
@@ -49,22 +49,27 @@ def extract_key_information(ocr_text: str) -> Dict[str, Optional[str]]:
         'customer_country': None
     }
     
-    # Convert to lowercase for matching
+    if not ocr_text:
+        return extracted_info
+    
+    # First try table format extraction
+    table_result = extract_from_table_format(ocr_text)
+    if any(table_result.values()):
+        return table_result
+    
+    # Fallback to regex patterns
     text_lower = ocr_text.lower()
     
-    # Define keyword patterns
+    # Define regex patterns for each field
     patterns = {
         'customer_name': [
-            r'customer\s*name[:\s]*([^\n\r]+)',
-            r'name[:\s]*([^\n\r]+)',
-            r'customer\s*name[:\s]*([^\n\r]+)',
-            r'client\s*name[:\s]*([^\n\r]+)'
+            r'customer\s*name[:\s]*([^\n\r|]+)',
+            r'client\s*name[:\s]*([^\n\r|]+)'
         ],
         'customer_id': [
             r'customer\s*id[:\s]*([A-Za-z0-9\-_]+)',
             r'customer\s*number[:\s]*([A-Za-z0-9\-_]+)',
-            r'client\s*id[:\s]*([A-Za-z0-9\-_]+)',
-            r'id[:\s]*([A-Za-z0-9\-_]+)'
+            r'client\s*id[:\s]*([A-Za-z0-9\-_]+)'
         ],
         'transaction_id': [
             r'transaction\s*id[:\s]*([A-Za-z0-9\-_]+)',
@@ -73,30 +78,25 @@ def extract_key_information(ocr_text: str) -> Dict[str, Optional[str]]:
             r'order\s*number[:\s]*([A-Za-z0-9\-_]+)'
         ],
         'transaction_amount': [
-            r'amount[:\s]*([\d,\.]+\s*[A-Za-z]*)',
-            r'total[:\s]*([\d,\.]+\s*[A-Za-z]*)',
-            r'price[:\s]*([\d,\.]+\s*[A-Za-z\$￥]*)',
-            r'sum[:\s]*([\d,\.]+\s*[A-Za-z\$￥]*)',
+            r'(?:transaction\s*)?amount[:\s]*([\d,\.]+(?:\.\d{2})?)',
+            r'total[:\s]*([\d,\.]+(?:\.\d{2})?)',
+            r'price[:\s]*([\d,\.]+(?:\.\d{2})?)',
             r'\$\s*([\d,\.]+)',
             r'￥\s*([\d,\.]+)'
         ],
         'payment_date': [
             r'payment\s*date[:\s]*([\d\-\/\s]+)',
-            r'date[:\s]*([\d\-\/\s]+)',
-            r'transaction\s*date[:\s]*([\d\-\/\s]+)',
-            r'invoice\s*date[:\s]*([\d\-\/\s]+)',
+            r'(?:^|\s)date[:\s]*([\d\-\/\s]+)',
             r'(\d{4}[\-\/]\d{1,2}[\-\/]\d{1,2})',
             r'(\d{1,2}[\-\/]\d{1,2}[\-\/]\d{4})'
         ],
         'document_timestamp': [
-            r'timestamp[:\s]*([\d\-\/\s:]+)',
-            r'time[:\s]*([\d\-\/\s:]+)',
-            r'datetime[:\s]*([\d\-\/\s:]+)',
-            r'(\d{4}[\-\/]\d{1,2}[\-\/]\d{1,2}\s+\d{1,2}:\d{1,2})',
-            r'(\d{1,2}[\-\/]\d{1,2}[\-\/]\d{4}\s+\d{1,2}:\d{1,2})'
+            r'(?:document\s*)?timestamp[:\s]*([\d\-\/\s:]+)',
+            r'(\d{4}[\-\/]\d{1,2}[\-\/]\d{1,2}\s+\d{1,2}:\d{1,2}(?::\d{1,2})?)',
+            r'(\d{1,2}[\-\/]\d{1,2}[\-\/]\d{4}\s+\d{1,2}:\d{1,2}(?::\d{1,2})?)'
         ],
         'customer_country': [
-            r'country[:\s]*([A-Za-z\s]+)',
+            r'(?:customer\s*)?country[:\s]*([A-Za-z\s]+)',
             r'nation[:\s]*([A-Za-z\s]+)',
             r'region[:\s]*([^\n\r]+)',
             r'location[:\s]*([^\n\r]+)'
@@ -110,11 +110,97 @@ def extract_key_information(ocr_text: str) -> Dict[str, Optional[str]]:
             if match:
                 value = match.group(1).strip()
                 # Clean extracted value
-                value = re.sub(r'[:\s]+$', '', value)  # Remove trailing colons and spaces
+                value = re.sub(r'[:\s|]+$', '', value)  # Remove trailing colons, spaces, and pipes
+                value = re.sub(r'^[:\s|]+', '', value)  # Remove leading colons, spaces, and pipes
                 value = value.strip()
-                if value and len(value) > 0:
+                if value and len(value) > 0 and not value.isspace():
                     extracted_info[key] = value
                     break  # Stop after finding first match
+    
+    return extracted_info
+
+def extract_from_table_format(text: str) -> Dict[str, Optional[str]]:
+    """Extract information from table format text"""
+    extracted_info = {
+        'customer_name': None,
+        'customer_id': None,
+        'transaction_id': None,
+        'transaction_amount': None,
+        'payment_date': None,
+        'document_timestamp': None,
+        'customer_country': None
+    }
+    
+    lines = text.strip().split('\n')
+    
+    # Field name mappings for key-value pair extraction
+    field_mappings = {
+        'customer name': 'customer_name',
+        'customer id': 'customer_id', 
+        'transaction id': 'transaction_id',
+        'transaction amount': 'transaction_amount',
+        'payment date': 'payment_date',
+        'document timestamp': 'document_timestamp',
+        'customer country': 'customer_country'
+    }
+    
+    # Look for table structure
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Check if this line contains data (not headers and not separator lines)
+        if '|' in line and not ('fieldname' in line.lower() and 'value' in line.lower()) and '---' not in line:
+            # Split by pipe and clean up
+            parts = [part.strip() for part in line.split('|')]
+            
+            # Filter out empty parts
+            parts = [part for part in parts if part and not part.isspace()]
+            
+            # Handle key-value pair format: | FieldName | Value |
+            if len(parts) == 2:
+                field_name = parts[0].lower().strip()
+                field_value = parts[1].strip()
+                
+                # Map field name to our database field
+                if field_name in field_mappings and field_value:
+                    db_field = field_mappings[field_name]
+                    extracted_info[db_field] = field_value
+            
+            # Handle traditional table format (multiple columns in one row)
+            elif len(parts) >= 3 and not any('name' in part.lower() or 'id' in part.lower() or '---' in part for part in parts[:3]):
+                # Extract based on position - this should be actual data
+                if len(parts) >= 1 and parts[0] and not parts[0].isdigit() and parts[0] != '---':
+                    # Check if it's a real name (not separator)
+                    if not re.match(r'^[\-=_]+$', parts[0]):
+                        extracted_info['customer_name'] = parts[0]
+                
+                if len(parts) >= 2 and parts[1] and parts[1].isdigit():
+                    extracted_info['customer_id'] = parts[1]
+                
+                if len(parts) >= 3 and parts[2] and parts[2].isdigit():
+                    extracted_info['transaction_id'] = parts[2]
+                
+                if len(parts) >= 4 and parts[3]:
+                    # Check if it's an amount (contains digits and possibly decimal)
+                    if re.match(r'^[\d,\.]+$', parts[3]):
+                        extracted_info['transaction_amount'] = parts[3]
+                
+                if len(parts) >= 5 and parts[4]:
+                    # Check if it's a date
+                    if re.match(r'\d{4}[\-\/]\d{1,2}[\-\/]\d{1,2}', parts[4]):
+                        extracted_info['payment_date'] = parts[4]
+                
+                if len(parts) >= 6 and parts[5]:
+                    # Check if it's a timestamp
+                    if re.match(r'\d{4}[\-\/]\d{1,2}[\-\/]\d{1,2}', parts[5]):
+                        extracted_info['document_timestamp'] = parts[5]
+                
+                if len(parts) >= 7 and parts[6]:
+                    # Country is usually text
+                    if re.match(r'^[A-Za-z]+', parts[6]):
+                        extracted_info['customer_country'] = parts[6]
     
     return extracted_info
 
@@ -163,7 +249,7 @@ def get_all_records() -> List[Dict]:
     cursor.execute('''
         SELECT id, filename, file_path, processing_time, customer_name, customer_id,
                transaction_id, transaction_amount, payment_date, document_timestamp,
-               customer_country, model_used, extraction_confidence
+               customer_country, raw_ocr_text, model_used, extraction_confidence
         FROM ocr_records
         ORDER BY processing_time DESC
     ''')
@@ -173,6 +259,8 @@ def get_all_records() -> List[Dict]:
     
     for row in cursor.fetchall():
         record = dict(zip(columns, row))
+        # Add ocr_text field for frontend compatibility
+        record['ocr_text'] = record.get('raw_ocr_text', '')
         records.append(record)
     
     conn.close()

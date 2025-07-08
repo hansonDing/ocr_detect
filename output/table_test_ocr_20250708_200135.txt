@@ -1,0 +1,9 @@
+Recognition Time: 2025-07-08T20:01:35.850852
+Original Filename: table_test_ocr.png
+Recognition Model: OCR API
+Processing Status: Success
+
+Recognition Result:
+| customer name | customer id | transaction id | transaction amount | payment date | document timestamp | customer country |
+|---------------|-------------|----------------|--------------------|--------------|--------------------|------------------|
+| Hanson        | 1520765     | 1988888888     | 500000000          | 2025/7/8     | 2025/7/8           | Chinae           |
