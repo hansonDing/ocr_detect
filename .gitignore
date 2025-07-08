@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+PYTHONPATH
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Environment variables
+.env
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Output files
+output/
+uploads/
+
+# Test files
+test_*.py
+!test_enhanced_ocr_flow.py
+!test_json_api.py
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PDF test files
+*.pdf
+!client_payment_report_mock.pdf
+
+# Image test files
+*.png
+*.jpg
+*.jpeg
+!table_test_ocr_*.png
+
+# OCR test data
+ocr_test.txt

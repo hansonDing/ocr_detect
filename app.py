@@ -409,7 +409,26 @@ def ocr_with_api(image_path, image_type='document'):
         if response.choices and len(response.choices) > 0:
             content = response.choices[0].message.content
             if content:
-                return content.strip()
+                # Check if the response is JSON format with natural_text
+                try:
+                    import json
+                    from json_ocr_processor import extract_natural_text_from_json
+                    
+                    # Try to parse as JSON
+                    json_data = json.loads(content.strip())
+                    
+                    # Check if it contains natural_text field
+                    if isinstance(json_data, dict) and 'natural_text' in json_data:
+                        natural_text = extract_natural_text_from_json(content.strip())
+                        if natural_text:
+                            return natural_text
+                    
+                    # If it's JSON but no natural_text, return as is
+                    return content.strip()
+                    
+                except (json.JSONDecodeError, ValueError):
+                    # Not JSON format, return as plain text
+                    return content.strip()
             else:
                 return "OCR returned no recognition result"
         else:
@@ -471,17 +490,53 @@ def process_ocr_and_extract_info(image_path, filename, image_type='document'):
         # Perform OCR recognition
         ocr_result, model_used = perform_ocr(image_path, image_type)
         
-        # Extract key information
-        extracted_info = extract_key_information(ocr_result)
+        # Check if OCR result is JSON format and process accordingly
+        extracted_info = {}
+        record_id = None
         
-        # Save to database
-        record_id = save_to_database(
-            filename=filename,
-            file_path=image_path,
-            ocr_text=ocr_result,
-            model_used=model_used,
-            extracted_info=extracted_info
-        )
+        try:
+            import json
+            from json_ocr_processor import process_json_ocr_result
+            
+            # Try to parse as JSON to check if it's a structured OCR result
+            json_data = json.loads(ocr_result)
+            
+            # If it's JSON format with natural_text, use JSON processor
+            if isinstance(json_data, dict) and 'natural_text' in json_data:
+                success, record_id, extracted_info = process_json_ocr_result(
+                    ocr_result, filename, image_path, model_used
+                )
+                if not success:
+                    # Fallback to regular extraction
+                    extracted_info = extract_key_information(ocr_result)
+                    record_id = save_to_database(
+                        filename=filename,
+                        file_path=image_path,
+                        ocr_text=ocr_result,
+                        model_used=model_used,
+                        extracted_info=extracted_info
+                    )
+            else:
+                # JSON format but no natural_text, use regular extraction
+                extracted_info = extract_key_information(ocr_result)
+                record_id = save_to_database(
+                    filename=filename,
+                    file_path=image_path,
+                    ocr_text=ocr_result,
+                    model_used=model_used,
+                    extracted_info=extracted_info
+                )
+                
+        except (json.JSONDecodeError, ValueError):
+            # Not JSON format, use regular extraction
+            extracted_info = extract_key_information(ocr_result)
+            record_id = save_to_database(
+                filename=filename,
+                file_path=image_path,
+                ocr_text=ocr_result,
+                model_used=model_used,
+                extracted_info=extracted_info
+            )
         
         return {
             'ocr_result': ocr_result,
@@ -535,7 +590,29 @@ def save_result_to_file(filename, ocr_result, original_filename, model_used, out
             f.write(f"Processing Status: {'Success' if 'failed' not in ocr_result else 'Failed'}\n")
             f.write("\n")
             f.write("Recognition Result:\n")
-            f.write(ocr_result)
+            
+            # Check if OCR result is already JSON format
+            try:
+                import json
+                json_data = json.loads(ocr_result)
+                # If it's valid JSON, save it as JSON string
+                f.write(json.dumps(json_data, ensure_ascii=False, separators=(',', ':')))
+            except (json.JSONDecodeError, ValueError):
+                # If not JSON, try to create a JSON structure with natural_text
+                try:
+                    # Create a JSON structure similar to ocr_test.txt format
+                    json_result = {
+                        "primary_language": "en",
+                        "is_rotation_valid": True,
+                        "rotation_correction": 0,
+                        "is_table": True,
+                        "is_diagram": False,
+                        "natural_text": ocr_result
+                    }
+                    f.write(json.dumps(json_result, ensure_ascii=False, separators=(',', ':')))
+                except Exception:
+                    # Fallback to plain text
+                    f.write(ocr_result)
             
     elif output_format == 'xlsx':
         try:
@@ -1048,6 +1125,73 @@ def advanced_search_records():
             'message': f'Advanced search failed: {str(e)}',
             'records': []
         })
+
+@app.route('/api/process-json-ocr', methods=['POST'])
+def process_json_ocr():
+    """Process JSON format OCR result and save to database"""
+    try:
+        from json_ocr_processor import process_json_ocr_result, process_ocr_result_text, format_extracted_info
+        
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'message': 'No JSON data provided'
+            }), 400
+        
+        # Get parameters
+        json_str = data.get('json_result')
+        ocr_text = data.get('ocr_text')
+        filename = data.get('filename', 'unknown')
+        file_path = data.get('file_path', '')
+        model_used = data.get('model_used', 'OCR API')
+        
+        success = False
+        record_id = None
+        extracted_info = {}
+        
+        # Process JSON result directly
+        if json_str:
+            success, record_id, extracted_info = process_json_ocr_result(
+                json_str=json_str,
+                filename=filename,
+                file_path=file_path,
+                model_used=model_used
+            )
+        # Process complete OCR result text
+        elif ocr_text:
+            success, record_id, extracted_info = process_ocr_result_text(
+                ocr_result_text=ocr_text,
+                filename=filename,
+                file_path=file_path
+            )
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Either json_result or ocr_text must be provided'
+            }), 400
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'OCR result processed and saved successfully',
+                'record_id': record_id,
+                'extracted_info': extracted_info,
+                'formatted_info': format_extracted_info(extracted_info)
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': extracted_info.get('error', 'Processing failed'),
+                'details': extracted_info
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Processing failed: {str(e)}'
+        }), 500
 
 @app.route('/api/database/export')
 def export_database_records():
