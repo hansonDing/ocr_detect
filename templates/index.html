@@ -279,13 +279,23 @@
                     <input type="file" id="fileInput" name="file" class="file-input" accept="image/*,.pdf,.zip">
                 </div>
                 
-                <div class="format-selection" style="margin: 20px 0; text-align: center;">
-                    <label for="outputFormat" style="display: block; margin-bottom: 8px; font-weight: bold; color: #333;">Select Output Format:</label>
-                    <select id="outputFormat" name="output_format" style="padding: 8px 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px; background: white; min-width: 120px;">
-                        <option value="json">JSON Format</option>
-                    <option value="txt">TXT Format</option>
-                    <option value="xlsx">XLSX Format</option>
-                    </select>
+                <div class="selection-container" style="margin: 20px 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
+                    <div class="image-type-selection" style="flex: 1; text-align: center;">
+                        <label for="imageType" style="display: block; margin-bottom: 8px; font-weight: bold; color: #333;">Select Image Type:</label>
+                        <select id="imageType" name="image_type" style="padding: 8px 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px; background: white; min-width: 120px;">
+                            <option value="document">Document Image</option>
+                            <option value="table">Table Image</option>
+                        </select>
+                    </div>
+                    
+                    <div class="format-selection" style="flex: 1; text-align: center;">
+                        <label for="outputFormat" style="display: block; margin-bottom: 8px; font-weight: bold; color: #333;">Select Output Format:</label>
+                        <select id="outputFormat" name="output_format" style="padding: 8px 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px; background: white; min-width: 120px;">
+                            <option value="json">JSON Format</option>
+                            <option value="txt">TXT Format</option>
+                            <option value="xlsx">XLSX Format</option>
+                        </select>
+                    </div>
                 </div>
                 
                 <div class="progress" id="progress">
@@ -379,6 +389,10 @@
             // Add selected output format
             const outputFormat = document.getElementById('outputFormat').value;
             formData.append('output_format', outputFormat);
+            
+            // Add selected image type
+            const imageType = document.getElementById('imageType').value;
+            formData.append('image_type', imageType);
             
             // Show progress bar
             progress.style.display = 'block';
