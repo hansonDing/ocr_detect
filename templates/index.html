@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Recognition System</title>
+    <title>OCR Recognition and Database Management System</title>
     <style>
         * {
             margin: 0;
@@ -19,7 +19,7 @@
         }
         
         .container {
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
             background: white;
             border-radius: 15px;
@@ -42,6 +42,47 @@
         .header p {
             font-size: 1.1em;
             opacity: 0.9;
+        }
+        
+        /* Navigation tab styles */
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .nav-tab {
+            flex: 1;
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 500;
+            color: #495057;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .nav-tab:hover {
+            background: #e9ecef;
+            color: #667eea;
+        }
+        
+        .nav-tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        /* Tab content styles */
+        .tab-content {
+            display: none;
+            padding: 40px;
+        }
+        
+        .tab-content.active {
+            display: block;
         }
         
         .content {
@@ -154,6 +195,59 @@
             overflow-y: auto;
         }
         
+        .batch-results {
+            margin-top: 15px;
+        }
+        
+        .batch-summary {
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .batch-item {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .batch-item.success {
+            border-left: 4px solid #28a745;
+        }
+        
+        .batch-item.failed {
+            border-left: 4px solid #dc3545;
+        }
+        
+        .batch-item-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .status-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status-failed {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
         .file-info {
             margin-top: 15px;
             font-size: 0.9em;
@@ -172,6 +266,93 @@
             border: 1px solid #dee2e6;
             border-radius: 5px;
             padding: 10px;
+        }
+        
+        .database-records {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            background: #fafafa;
+        }
+        
+        .record-item {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .record-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .record-id {
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .record-timestamp {
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .record-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .extracted-info {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .ocr-text {
+            background: #fff;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        
+        .delete-btn:hover {
+            background: #c82333;
+        }
+        
+        .info-item {
+            margin-bottom: 5px;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .info-value {
+            color: #666;
         }
         
         .result-item {
@@ -215,15 +396,42 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Image Recognition System</h1>
+            <h1>OCR Recognition and Database Management System</h1>
+            <p>Intelligent Document Recognition and Data Management Platform</p>
         </div>
         
-        <div class="content">
+        <!-- Navigation tabs -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('ocr-tab')">📄 OCR Document Recognition</button>
+            <button class="nav-tab" onclick="switchTab('database-tab')">🗄️ Database Query</button>
+        </div>
+        
+        <!-- OCR recognition tab content -->
+        <div id="ocr-tab" class="tab-content active">
             <form id="uploadForm" enctype="multipart/form-data">
                 <div class="upload-area" id="uploadArea">
                     <div class="upload-icon">📁</div>
-                    <div class="upload-text">Click to select image or drag image here</div>
-                    <input type="file" id="fileInput" name="file" class="file-input" accept="image/*,.pdf">
+                    <div class="upload-text">Click to select image/ZIP file or drag file here</div>
+                    <input type="file" id="fileInput" name="file" class="file-input" accept="image/*,.pdf,.zip">
+                </div>
+                
+                <div class="selection-container" style="margin: 20px 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
+                    <div class="image-type-selection" style="flex: 1; text-align: center;">
+                        <label for="imageType" style="display: block; margin-bottom: 8px; font-weight: bold; color: #333;">Select Image Type:</label>
+                        <select id="imageType" name="image_type" style="padding: 8px 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px; background: white; min-width: 120px;">
+                            <option value="document">Document Image</option>
+                            <option value="table">Table Image</option>
+                        </select>
+                    </div>
+                    
+                    <div class="format-selection" style="flex: 1; text-align: center;">
+                        <label for="outputFormat" style="display: block; margin-bottom: 8px; font-weight: bold; color: #333;">Select Output Format:</label>
+                        <select id="outputFormat" name="output_format" style="padding: 8px 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px; background: white; min-width: 120px;">
+                            <option value="json">JSON Format</option>
+                            <option value="txt">TXT Format</option>
+                            <option value="xlsx">XLSX Format</option>
+                        </select>
+                    </div>
                 </div>
                 
                 <div class="progress" id="progress">
@@ -250,6 +458,76 @@
                 <button class="btn" onclick="loadResults()" style="margin: 10px 0;">Refresh Result List</button>
                 <div class="results-list" id="resultsList">
                     <div style="text-align: center; color: #999;">Click refresh button to load history results</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Database query tab content -->
+        <div id="database-tab" class="tab-content">
+            <div class="database-query-section">
+                <h2 style="color: #333; margin-bottom: 30px; text-align: center;">🗄️ Database Query and Management</h2>
+                
+                <!-- Query statistics -->
+                <div class="stats-section" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                        <h3 style="margin: 0; font-size: 2em;" id="totalRecords">-</h3>
+                        <p style="margin: 5px 0 0 0; opacity: 0.9;">Total Records</p>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                        <h3 style="margin: 0; font-size: 2em;" id="extractedRecords">-</h3>
+                        <p style="margin: 5px 0 0 0; opacity: 0.9;">Successfully Extracted</p>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%); color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                        <h3 style="margin: 0; font-size: 2em;" id="todayRecords">-</h3>
+                        <p style="margin: 5px 0 0 0; opacity: 0.9;">Processed Today</p>
+                    </div>
+                </div>
+                
+                <!-- Database query area -->
+                <div class="database-search" style="background: #f8f9fa; padding: 25px; border-radius: 12px; margin-bottom: 30px;">
+                    <h3 style="margin-top: 0; color: #333; margin-bottom: 20px;">🔍 Database Query</h3>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Customer Name</label>
+                            <input type="text" id="queryCustomerName" placeholder="Enter customer name" 
+                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Customer ID</label>
+                            <input type="text" id="queryCustomerId" placeholder="Enter customer ID" 
+                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Transaction ID</label>
+                            <input type="text" id="queryTransactionId" placeholder="Enter transaction ID" 
+                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Customer Country</label>
+                            <input type="text" id="queryCustomerCountry" placeholder="Enter customer country" 
+                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button onclick="executeQuery()" class="btn" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);">🔍 Execute Query</button>
+                        <button onclick="loadAllRecords()" class="btn" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);">📋 Show All</button>
+                        <button onclick="clearQueryForm()" class="btn" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%);">🧹 Clear Conditions</button>
+                        <button onclick="exportRecords()" class="btn" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">📤 Export Data</button>
+                    </div>
+                </div>
+                
+                <!-- Query results display area -->
+                <div class="results-display">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="margin: 0; color: #333;">📊 Query Results</h3>
+                        <div id="resultsCount" style="color: #666; font-size: 0.9em;">Loading...</div>
+                    </div>
+                    
+                    <div id="databaseRecords" class="database-records">
+                        <div style="text-align: center; color: #999; padding: 40px;">Loading database records...</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -307,12 +585,20 @@
             e.preventDefault();
             
             if (!fileInput.files[0]) {
-                alert('Please select an image file first');
+                alert('Please select an image or ZIP file first');
                 return;
             }
             
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
+            
+            // Add selected output format
+            const outputFormat = document.getElementById('outputFormat').value;
+            formData.append('output_format', outputFormat);
+            
+            // Add selected image type
+            const imageType = document.getElementById('imageType').value;
+            formData.append('image_type', imageType);
             
             // Show progress bar
             progress.style.display = 'block';
@@ -350,12 +636,73 @@
                     if (data.success) {
                         result.className = 'result success';
                         resultMessage.textContent = data.message;
-                        ocrResult.textContent = data.ocr_result;
-                        fileInfo.innerHTML = `
-                            <strong>Uploaded file:</strong> ${data.uploaded_file}<br>
-                            <strong>Result file:</strong> ${data.json_file}<br>
-                            <strong>Recognition model:</strong> ${data.model_info}
-                        `;
+                        
+                        // Display extracted information if available
+                        if (data.extracted_info && Object.keys(data.extracted_info).length > 0) {
+                            const extractedCount = data.extracted_count || 0;
+                            const extractedInfoHtml = `
+                                <div style="margin-top: 15px; padding: 15px; background: #e8f5e8; border-radius: 8px; border-left: 4px solid #28a745;">
+                                    <h4 style="margin-top: 0; color: #155724;">🎯 Extracted Key Information (${extractedCount} fields found)</h4>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                        <div><strong>Customer Name:</strong> ${data.extracted_info.customer_name || 'N/A'}</div>
+                                        <div><strong>Customer ID:</strong> ${data.extracted_info.customer_id || 'N/A'}</div>
+                                        <div><strong>Transaction ID:</strong> ${data.extracted_info.transaction_id || 'N/A'}</div>
+                                        <div><strong>Transaction Amount:</strong> ${data.extracted_info.transaction_amount || 'N/A'}</div>
+                                        <div><strong>Payment Date:</strong> ${data.extracted_info.payment_date || 'N/A'}</div>
+                                        <div><strong>Document Timestamp:</strong> ${data.extracted_info.document_timestamp || 'N/A'}</div>
+                                        <div><strong>Customer Country:</strong> ${data.extracted_info.customer_country || 'N/A'}</div>
+                                        <div><strong>Database Record ID:</strong> #${data.record_id || 'N/A'}</div>
+                                    </div>
+                                </div>
+                            `;
+                            ocrResult.innerHTML = extractedInfoHtml + '<div style="margin-top: 15px;"><h4>📄 Full OCR Text:</h4><div style="background: #f8f9fa; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto; font-family: monospace;">' + (data.ocr_result || '') + '</div></div>';
+                        } else {
+                            ocrResult.textContent = data.ocr_result;
+                        }
+                        
+                        if (data.file_type === 'zip') {
+                            // Display ZIP batch processing results
+                            const batchResults = data.batch_results;
+                            ocrResult.innerHTML = `
+                                <div class="batch-results">
+                                    <div class="batch-summary">
+                                        <h4>📦 ZIP File Processing Summary</h4>
+                                        <p><strong>Output Directory:</strong> ${data.output_directory}</p>
+                                        <p><strong>Total Images:</strong> ${batchResults.total_images}</p>
+                                        <p><strong>Successfully Processed:</strong> ${batchResults.success_count}</p>
+                                        <p><strong>Failed:</strong> ${batchResults.failed_count}</p>
+                                    </div>
+                                    <h5>Processing Details:</h5>
+                                    ${batchResults.processed_results.map(item => `
+                                        <div class="batch-item ${item.status}">
+                                            <div class="batch-item-header">
+                                                <span>📄 ${item.image_file}</span>
+                                                <span class="status-badge status-${item.status}">${item.status.toUpperCase()}</span>
+                                            </div>
+                                            <div><strong>Model:</strong> ${item.model_used}</div>
+                                            ${item.result_file ? `<div><strong>Result File:</strong> ${item.result_file} (${item.output_format.toUpperCase()})</div>` : ''}
+                                            <div class="ocr-result" style="margin-top: 8px; max-height: 150px;">${item.ocr_result}</div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            `;
+                            fileInfo.innerHTML = `
+                                <strong>Uploaded file:</strong> ${data.uploaded_file}<br>
+                                <strong>File type:</strong> ZIP Archive (${data.output_format.toUpperCase()})<br>
+                                <strong>Output directory:</strong> ${data.output_directory}
+                            `;
+                        } else {
+                            // Display single image processing result
+                            // OCR result is already handled above with extracted info
+                            if (!data.extracted_info || Object.keys(data.extracted_info).length === 0) {
+                                ocrResult.textContent = data.ocr_result;
+                            }
+                            fileInfo.innerHTML = `
+                                <strong>Uploaded file:</strong> ${data.uploaded_file}<br>
+                                <strong>Result file:</strong> ${data.result_file} (${data.output_format.toUpperCase()})<br>
+                                <strong>Recognition model:</strong> ${data.model_info}
+                            `;
+                        }
                     } else {
                         result.className = 'result error';
                         resultMessage.textContent = data.message;
@@ -368,10 +715,11 @@
                     
                     // Reset form
                     uploadForm.reset();
-                    uploadArea.querySelector('.upload-text').textContent = 'Click to select image or drag image here';
+                    uploadArea.querySelector('.upload-text').textContent = 'Click to select image/ZIP file or drag file here';
                     
-                    // Refresh result list
+                    // Refresh result list and database records
                     loadResults();
+                    loadAllRecords();
                 }, 500);
                 
             } catch (error) {
@@ -398,15 +746,67 @@
                 
                 const resultsList = document.getElementById('resultsList');
                 
-                if (data.success && data.files.length > 0) {
-                    resultsList.innerHTML = data.files.map(file => 
-                        `<div class="result-item">
-                            <span class="file-name">${file}</span>
-                            <button class="download-btn" onclick="downloadFile('${file}')" title="Download ${file}">
-                                📥 Download
-                            </button>
-                        </div>`
-                    ).join('');
+                if (data.success && (data.results.single_files.length > 0 || data.results.batch_directories.length > 0)) {
+                    let html = '';
+                    
+                    // Display batch processing directories
+                    if (data.results.batch_directories.length > 0) {
+                        html += '<div style="margin-bottom: 20px;"><h4 style="color: #333; margin-bottom: 10px;">📦 Batch Processing Results</h4>';
+                        data.results.batch_directories.forEach(dir => {
+                            const createdDate = new Date(dir.created_time * 1000).toLocaleString();
+                            html += `
+                                <div class="batch-directory" style="border: 1px solid #ddd; border-radius: 8px; margin-bottom: 15px; padding: 15px; background: #f9f9f9;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                        <h5 style="margin: 0; color: #2c5aa0;">📁 ${dir.name}</h5>
+                                        <span style="font-size: 0.9em; color: #666;">${createdDate}</span>
+                                    </div>
+                                    <div style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+                                        Total files: ${dir.files.length}
+                                    </div>
+                                    <div class="batch-files">`;
+                            
+                            dir.files.forEach(file => {
+                                const modifiedDate = new Date(file.modified_time * 1000).toLocaleString();
+                                const fileSize = (file.size / 1024).toFixed(1) + ' KB';
+                                html += `
+                                    <div class="result-item" style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 4px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div>
+                                                <span class="file-name" style="font-weight: 500;">${file.name}</span>
+                                                <div style="font-size: 0.8em; color: #888; margin-top: 2px;">
+                                                    ${fileSize} • ${modifiedDate}
+                                                </div>
+                                            </div>
+                                            <button class="download-btn" onclick="downloadBatchFile('${dir.name}', '${file.name}')" title="Download ${file.name}">
+                                                📥 Download
+                                            </button>
+                                        </div>
+                                    </div>`;
+                            });
+                            
+                            html += `
+                                    </div>
+                                </div>`;
+                        });
+                        html += '</div>';
+                    }
+                    
+                    // Display single files
+                    if (data.results.single_files.length > 0) {
+                        html += '<div><h4 style="color: #333; margin-bottom: 10px;">📄 Individual Processing Results</h4>';
+                        data.results.single_files.forEach(file => {
+                            html += `
+                                <div class="result-item">
+                                    <span class="file-name">${file}</span>
+                                    <button class="download-btn" onclick="downloadFile('${file}')" title="Download ${file}">
+                                        📥 Download
+                                    </button>
+                                </div>`;
+                        });
+                        html += '</div>';
+                    }
+                    
+                    resultsList.innerHTML = html;
                 } else {
                     resultsList.innerHTML = '<div style="text-align: center; color: #999;">No recognition results</div>';
                 }
@@ -416,13 +816,13 @@
             }
         }
         
-        // Download file function
+        // Download file function for single files
         function downloadFile(filename) {
             try {
-                // 创建下载链接
+                // Create download link
                 const downloadUrl = `/download/${encodeURIComponent(filename)}`;
                 
-                // 创建临时链接元素并触发下载
+                // Create temporary link element and trigger download
                 const link = document.createElement('a');
                 link.href = downloadUrl;
                 link.download = filename;
@@ -433,6 +833,27 @@
                 console.log(`Downloading file: ${filename}`);
             } catch (error) {
                 console.error('Download failed:', error);
+                alert(`Download failed: ${error.message}`);
+            }
+        }
+        
+        // Download file function for batch processing files
+        function downloadBatchFile(directory, filename) {
+            try {
+                // Create download link
+                const downloadUrl = `/download/${encodeURIComponent(directory)}/${encodeURIComponent(filename)}`;
+                
+                // Create temporary link element and trigger download
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                console.log(`Downloading batch file: ${directory}/${filename}`);
+            } catch (error) {
+                console.error('Batch download failed:', error);
                 alert(`Download failed: ${error.message}`);
             }
         }
@@ -474,9 +895,357 @@
             }
         }
         
-        // Auto load result list after page loads
+        // Load all database records
+        async function loadAllRecords() {
+            try {
+                const response = await fetch('/database/records');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayDatabaseRecords(data.records);
+                    document.getElementById('resultsCount').textContent = `Total ${data.records.length} records`;
+                } else {
+                    document.getElementById('databaseRecords').innerHTML = '<div style="text-align: center; color: #999;">No database records found</div>';
+                    document.getElementById('resultsCount').textContent = '0 records';
+                }
+            } catch (error) {
+                console.error('Failed to load database records:', error);
+                document.getElementById('databaseRecords').innerHTML = '<div style="text-align: center; color: #f00;">Failed to load database records</div>';
+                document.getElementById('resultsCount').textContent = 'Loading failed';
+            }
+        }
+        
+        // Search database records
+        async function searchRecords() {
+            const keyword = document.getElementById('searchKeyword').value.trim();
+            if (!keyword) {
+                alert('Please enter a search keyword');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/database/search?keyword=${encodeURIComponent(keyword)}`);
+                const data = await response.json();
+                
+                const recordsDiv = document.getElementById('databaseRecords');
+                
+                if (data.success && data.records.length > 0) {
+                    let html = `<div style="margin-bottom: 15px; padding: 10px; background: #e7f3ff; border-radius: 4px; color: #0066cc;">
+                                    🔍 Search results for "${keyword}" (${data.records.length} records found)
+                                </div>`;
+                    
+                    data.records.forEach(record => {
+                        const timestamp = new Date(record.timestamp).toLocaleString();
+                        html += `
+                            <div class="record-item">
+                                <div class="record-header">
+                                    <span class="record-id">Record #${record.id}</span>
+                                    <div>
+                                        <span class="record-timestamp">${timestamp}</span>
+                                        <button class="delete-btn" onclick="deleteRecord(${record.id})" title="Delete this record">
+                                            🗑️ Delete
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="record-content">
+                                    <div class="extracted-info">
+                                        <h5 style="margin-top: 0; color: #333;">📋 Extracted Information</h5>
+                                        <div class="info-item">
+                                            <span class="info-label">Customer Name:</span>
+                                            <span class="info-value">${record.customer_name || 'N/A'}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="info-label">Customer ID:</span>
+                                            <span class="info-value">${record.customer_id || 'N/A'}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="info-label">Transaction ID:</span>
+                                            <span class="info-value">${record.transaction_id || 'N/A'}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="info-label">Transaction Amount:</span>
+                                            <span class="info-value">${record.transaction_amount || 'N/A'}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="info-label">Payment Date:</span>
+                                            <span class="info-value">${record.payment_date || 'N/A'}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="info-label">Document Timestamp:</span>
+                                            <span class="info-value">${record.document_timestamp || 'N/A'}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="info-label">Customer Country:</span>
+                                            <span class="info-value">${record.customer_country || 'N/A'}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="info-label">OCR Model:</span>
+                                            <span class="info-value">${record.model_used}</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h5 style="margin-top: 0; color: #333;">📄 OCR Text</h5>
+                                        <div class="ocr-text">${record.ocr_text}</div>
+                                    </div>
+                                </div>
+                            </div>`;
+                    });
+                    recordsDiv.innerHTML = html;
+                } else {
+                    recordsDiv.innerHTML = `<div style="text-align: center; color: #999;">No records found for "${keyword}"</div>`;
+                }
+            } catch (error) {
+                console.error('Failed to search database records:', error);
+                document.getElementById('databaseRecords').innerHTML = '<div style="text-align: center; color: #f00;">Search failed</div>';
+            }
+        }
+        
+        // Delete database record
+        async function deleteRecord(recordId) {
+            if (!confirm(`Are you sure you want to delete record #${recordId}?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/database/record/${recordId}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Record deleted successfully');
+                    // Reload records and update statistics
+                    loadAllRecords();
+                    loadDatabaseStats();
+                } else {
+                    alert('Failed to delete record: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Failed to delete record:', error);
+                alert('Failed to delete record: ' + error.message);
+            }
+        }
+        
+        // Tab switching functionality
+        function switchTab(tabName) {
+            // Hide all tab contents
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+                content.style.display = 'none';
+            });
+            
+            // Remove active state from all tabs
+            const tabs = document.querySelectorAll('.nav-tab');
+            tabs.forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            const targetTab = document.getElementById(tabName);
+            if (targetTab) {
+                targetTab.classList.add('active');
+                targetTab.style.display = 'block';
+            }
+            
+            // Activate selected tab
+            event.target.classList.add('active');
+            
+            // If switching to database tab, load statistics and records
+            if (tabName === 'database-tab') {
+                loadDatabaseStats();
+                loadAllRecords();
+            }
+        }
+        
+        // Load database statistics
+        async function loadDatabaseStats() {
+            try {
+                const response = await fetch('/api/database/stats');
+                if (response.ok) {
+                    const stats = await response.json();
+                    document.getElementById('totalRecords').textContent = stats.total || 0;
+                    document.getElementById('extractedRecords').textContent = stats.extracted || 0;
+                    document.getElementById('todayRecords').textContent = stats.today || 0;
+                } else {
+                    console.error('Failed to load database stats');
+                }
+            } catch (error) {
+                console.error('Error loading database stats:', error);
+                document.getElementById('totalRecords').textContent = '0';
+                document.getElementById('extractedRecords').textContent = '0';
+                document.getElementById('todayRecords').textContent = '0';
+            }
+        }
+        
+        // Execute database query
+        async function executeQuery() {
+            const customerName = document.getElementById('queryCustomerName').value.trim();
+            const customerId = document.getElementById('queryCustomerId').value.trim();
+            const transactionId = document.getElementById('queryTransactionId').value.trim();
+            const customerCountry = document.getElementById('queryCustomerCountry').value.trim();
+            
+            const searchParams = {
+                customer_name: customerName,
+                customer_id: customerId,
+                transaction_id: transactionId,
+                customer_country: customerCountry
+            };
+            
+            // Remove empty values
+            Object.keys(searchParams).forEach(key => {
+                if (searchParams[key] === null || searchParams[key] === '') {
+                    delete searchParams[key];
+                }
+            });
+            
+            // If no query conditions, prompt user
+            if (Object.keys(searchParams).length === 0) {
+                alert('Please enter at least one query condition');
+                return;
+            }
+            
+            try {
+                const queryString = new URLSearchParams(searchParams).toString();
+                const response = await fetch(`/database/search?${queryString}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    displayDatabaseRecords(data.records);
+                    document.getElementById('resultsCount').textContent = `Found ${data.records.length} records`;
+                } else {
+                    throw new Error('Query failed');
+                }
+            } catch (error) {
+                console.error('Query error:', error);
+                document.getElementById('databaseRecords').innerHTML = 
+                    '<div style="text-align: center; color: #dc3545; padding: 20px;">Query failed, please try again later</div>';
+            }
+        }
+        
+        // Clear query form
+        function clearQueryForm() {
+            document.getElementById('queryCustomerName').value = '';
+            document.getElementById('queryCustomerId').value = '';
+            document.getElementById('queryTransactionId').value = '';
+            document.getElementById('queryCustomerCountry').value = '';
+        }
+        
+        // Export records functionality
+        async function exportRecords() {
+            try {
+                const response = await fetch('/api/database/export');
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `database_records_${new Date().toISOString().split('T')[0]}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    throw new Error('Export failed');
+                }
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('Export failed, please try again later');
+            }
+        }
+        
+        // Improved database record display function
+        function displayDatabaseRecords(records) {
+            const container = document.getElementById('databaseRecords');
+            
+            if (!records || records.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #999; padding: 40px;">No records</div>';
+                return;
+            }
+            
+            let html = '';
+            
+            records.forEach(record => {
+                const hasExtractedData = record.customer_name || record.transaction_amount || record.payment_date;
+                const timestamp = new Date(record.timestamp).toLocaleString();
+                
+                html += `
+                    <div class="record-item">
+                        <div class="record-header">
+                            <span class="record-id">Record #${record.id}</span>
+                            <div>
+                                <span class="record-timestamp">${timestamp}</span>
+                                <button class="delete-btn" onclick="deleteRecord(${record.id})" title="Delete this record">
+                                    🗑️ Delete
+                                </button>
+                            </div>
+                        </div>
+                        <div class="record-content">
+                            <div class="extracted-info">
+                                <h5 style="margin-top: 0; color: #333;">📋 Extracted Information</h5>
+                                <div class="info-item">
+                                    <span class="info-label">Customer Name:</span>
+                                    <span class="info-value">${record.customer_name || 'N/A'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Customer ID:</span>
+                                    <span class="info-value">${record.customer_id || 'N/A'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Transaction ID:</span>
+                                    <span class="info-value">${record.transaction_id || 'N/A'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Transaction Amount:</span>
+                                    <span class="info-value">${record.transaction_amount || 'N/A'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Payment Date:</span>
+                                    <span class="info-value">${record.payment_date || 'N/A'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Document Timestamp:</span>
+                                    <span class="info-value">${record.document_timestamp || 'N/A'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Customer Country:</span>
+                                    <span class="info-value">${record.customer_country || 'N/A'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">OCR Model:</span>
+                                    <span class="info-value">${record.model_used}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <h5 style="margin-top: 0; color: #333;">📄 OCR Text</h5>
+                                <div class="ocr-text">${record.ocr_text}</div>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // Auto load result list and database records after page loads
         document.addEventListener('DOMContentLoaded', function() {
+            // Show OCR tab by default
+            document.getElementById('ocr-tab').style.display = 'block';
+            document.getElementById('ocr-tab').classList.add('active');
+            document.getElementById('database-tab').style.display = 'none';
+            document.getElementById('database-tab').classList.remove('active');
+            
+            // Set default active tab
+            const firstTab = document.querySelector('.nav-tab');
+            if (firstTab) {
+                firstTab.classList.add('active');
+            }
+            
+            // Load OCR results
             loadResults();
+            
+            // Pre-load database statistics (but don't display records)
+            loadDatabaseStats();
         });
     </script>
 </body>
