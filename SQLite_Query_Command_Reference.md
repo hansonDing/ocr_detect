@@ -152,7 +152,7 @@ cursor.execute("""
 # Multi-condition query
 cursor.execute("""
     SELECT * FROM ocr_records 
-    WHERE model_used = 'MonkeyOCR' 
+    WHERE model_used = 'OCR API' 
     AND extraction_confidence > 0.8
     AND processing_time >= date('now', '-7 days')
     ORDER BY extraction_confidence DESC

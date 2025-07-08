@@ -34,33 +34,33 @@ init_database()
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
 
-# OpenAI API configuration - for calling ModelScope MonkeyOCR
-MONKEY_OCR_API_BASE = os.getenv('MONKEY_OCR_API_BASE', 'http://localhost:8000/v1')
-MONKEY_OCR_API_KEY = os.getenv('MONKEY_OCR_API_KEY', 'EMPTY')
-MONKEY_OCR_MODEL = os.getenv('MONKEY_OCR_MODEL', 'MonkeyOCR')
+# OpenAI API configuration - for calling ModelScope OCR
+OCR_API_BASE = os.getenv('OCR_API_BASE', 'http://localhost:8000/v1')
+OCR_API_KEY = os.getenv('OCR_API_KEY', 'EMPTY')
+OCR_MODEL = os.getenv('OCR_MODEL', 'OCR')
 
-# Initialize OpenAI client for MonkeyOCR
-print("Initializing MonkeyOCR client...")
+# Initialize OpenAI client for OCR
+print("Initializing OCR client...")
 ocr_client = None
 ocr_status = "Not initialized"
 
 try:
     ocr_client = OpenAI(
-        api_key=MONKEY_OCR_API_KEY,
-        base_url=MONKEY_OCR_API_BASE
+        api_key=OCR_API_KEY,
+    base_url=OCR_API_BASE
     )
     
     # Test connection
     try:
         models = ocr_client.models.list()
-        print(f"MonkeyOCR API connection successful! Available models: {[model.id for model in models.data]}")
-        ocr_status = "Connected"
-    except Exception as e:
-        print(f"MonkeyOCR API connection test failed: {e}")
-        ocr_status = "Connection failed"
-        
+        print(f"OCR API connection successful! Available models: {[model.id for model in models.data]}")
+    ocr_status = "Connected"
 except Exception as e:
-    print(f"MonkeyOCR client initialization failed: {e}")
+    print(f"OCR API connection test failed: {e}")
+    ocr_status = "Failed"
+    ocr_client = None
+except Exception as e:
+    print(f"OCR client initialization failed: {e}")
     ocr_status = "Initialization failed"
 
 # Backup OCR initialization
@@ -196,11 +196,11 @@ def image_to_base64(image_path):
     except Exception as e:
         raise Exception(f"Image encoding failed: {str(e)}")
 
-def ocr_with_monkey_api(image_path, image_type='document'):
-    """Call MonkeyOCR model using OpenAI API format"""
+def ocr_with_api(image_path, image_type='document'):
+    """Call OCR model using OpenAI API format"""
     try:
         if not ocr_client:
-            return "MonkeyOCR client not initialized"
+            return "OCR client not initialized"
         
         base64_image = image_to_base64(image_path)
         
@@ -211,7 +211,7 @@ def ocr_with_monkey_api(image_path, image_type='document'):
             prompt_text = "Please recognize all text content in this image and output it exactly as it appears in the original image layout. Requirements:\n1. Preserve the exact spatial layout and formatting of the original image\n2. Maintain all spacing, indentation, line breaks, and alignment as shown\n3. For tables: preserve column alignment and row structure using spaces or tabs\n4. For multi-column text: maintain the column layout and reading order\n5. For titles, headings, and special formatting: preserve their visual hierarchy and positioning\n6. Keep all original punctuation, symbols, and special characters\n7. Do not add any explanatory text or formatting markers - output only the recognized content in its original layout\n8. If text appears in different sizes or styles, maintain the relative positioning but output as plain text\n9. Preserve any mathematical formulas or equations in their original format\n10. Ensure the output can be directly used to recreate the visual layout of the original document"
         
         response = ocr_client.chat.completions.create(
-            model=MONKEY_OCR_MODEL,
+            model=OCR_MODEL,
             messages=[
                 {
                     "role": "user",
@@ -238,12 +238,12 @@ def ocr_with_monkey_api(image_path, image_type='document'):
             if content:
                 return content.strip()
             else:
-                return "MonkeyOCR returned no recognition result"
+                return "OCR returned no recognition result"
         else:
-            return "MonkeyOCR API response format error"
+            return "OCR API response format error"
             
     except Exception as e:
-        return f"MonkeyOCR API call failed: {str(e)}"
+        return f"OCR API call failed: {str(e)}"
 
 def ocr_with_tesseract(image_path):
     """Use Tesseract for OCR recognition"""
@@ -269,18 +269,18 @@ def ocr_with_basic(image_path):
             mode = img.mode
             format_name = img.format
             
-        return f"Image processed successfully\nFile path: {image_path}\nImage dimensions: {width}x{height}\nColor mode: {mode}\nFile format: {format_name}\n\nNote: Currently using basic image processing mode, no text recognition performed.\nRecommend configuring MonkeyOCR API or installing Tesseract to enable text recognition."
+        return f"Image processed successfully\nFile path: {image_path}\nImage dimensions: {width}x{height}\nColor mode: {mode}\nFile format: {format_name}\n\nNote: Currently using basic image processing mode, no text recognition performed.\nRecommend configuring OCR API or installing Tesseract to enable text recognition."
         
     except Exception as e:
         return f"Basic image processing failed: {str(e)}"
 
 def perform_ocr(image_path, image_type='document'):
     """Perform OCR recognition, try different solutions by priority"""
-    # Solution 1: MonkeyOCR API
+    # Solution 1: OCR API
     if ocr_client and ocr_status == "Connected":
-        result = ocr_with_monkey_api(image_path, image_type)
+        result = ocr_with_api(image_path, image_type)
         if "failed" not in result and "error" not in result:
-            return result, "MonkeyOCR API"
+            return result, "OCR API"
     
     # Solution 2: Tesseract
     if backup_ocr == "tesseract":
@@ -343,8 +343,8 @@ def save_result_to_file(filename, ocr_result, original_filename, model_used, out
             "processing_info": {
                 "model": model_used,
                 "status": "success" if "failed" not in ocr_result else "failed",
-                "api_endpoint": MONKEY_OCR_API_BASE if model_used == "MonkeyOCR API" else "Local",
-                "model_name": MONKEY_OCR_MODEL if model_used == "MonkeyOCR API" else model_used
+                "api_endpoint": OCR_API_BASE if model_used == "OCR API" else "Local",
+                "model_name": OCR_MODEL if model_used == "OCR API" else model_used
             }
         }
         
@@ -505,8 +505,8 @@ def upload_file():
                         'uploaded_file': new_filename,
                         'model_info': processing_result['model_used'],
                         'api_info': {
-                            'endpoint': MONKEY_OCR_API_BASE if processing_result['model_used'] == "MonkeyOCR API" else "Local",
-                            'model': MONKEY_OCR_MODEL if processing_result['model_used'] == "MonkeyOCR API" else processing_result['model_used']
+                            'endpoint': OCR_API_BASE if processing_result['model_used'] == "OCR API" else "Local",
+                            'model': OCR_MODEL if processing_result['model_used'] == "OCR API" else processing_result['model_used']
                         }
                     })
                 else:
@@ -670,10 +670,10 @@ def download_batch_file(directory, filename):
 def model_status():
     """Check model status"""
     return jsonify({
-        'monkey_ocr': {
+        'ocr_api': {
             'status': ocr_status,
-            'api_base': MONKEY_OCR_API_BASE,
-            'model': MONKEY_OCR_MODEL,
+            'api_base': OCR_API_BASE,
+            'model': OCR_MODEL,
             'available': ocr_client is not None and ocr_status == "Connected"
         },
         'backup_ocr': {
@@ -681,7 +681,7 @@ def model_status():
             'basic': True
         },
         'current_priority': [
-            "MonkeyOCR API" if ocr_status == "Connected" else None,
+            "OCR API" if ocr_status == "Connected" else None,
             "Tesseract" if backup_ocr == "tesseract" else None,
             "Basic"
         ]
@@ -868,10 +868,10 @@ def export_database_records():
 if __name__ == '__main__':
     print("=" * 60)
     print("OCR Service Startup Information:")
-    print(f"MonkeyOCR API: {ocr_status}")
+    print(f"OCR API: {ocr_status}")
     if ocr_status == "Connected":
-        print(f"  - API Address: {MONKEY_OCR_API_BASE}")
-        print(f"  - Model Name: {MONKEY_OCR_MODEL}")
+        print(f"  - API Address: {OCR_API_BASE}")
+        print(f"  - Model Name: {OCR_MODEL}")
     print(f"Backup OCR: {'Tesseract available' if backup_ocr == 'tesseract' else 'Basic processing only'}")
     print(f"Supported formats: {', '.join(ALLOWED_EXTENSIONS)}")
     print(f"Maximum file size: {MAX_FILE_SIZE // (1024*1024)}MB")

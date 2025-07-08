@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-07-08T17:17:28.921511",
+  "original_filename": "table_test_ocr.png",
+  "ocr_result": "Image processed successfully\nFile path: uploads\\table_test_ocr_20250708_171727.png\nImage dimensions: 1197x80\nColor mode: RGBA\nFile format: PNG\n\nNote: Currently using basic image processing mode, no text recognition performed.\nRecommend configuring OCR API or installing Tesseract to enable text recognition.",
+  "processing_info": {
+    "model": "Basic",
+    "status": "success",
+    "api_endpoint": "Local",
+    "model_name": "Basic"
+  }
+}

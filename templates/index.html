@@ -867,20 +867,20 @@
                 const statusDiv = document.getElementById('modelStatus');
                 statusDiv.style.display = 'block';
                 
-                if (data.monkey_ocr.available) {
+                if (data.ocr_api.available) {
                     statusDiv.className = 'result success';
                     statusDiv.innerHTML = `
                         <strong>✅ Model Status:</strong> Loaded<br>
-                        <strong>Model Name:</strong> ${data.monkey_ocr.model}<br>
-                        <strong>API Base:</strong> ${data.monkey_ocr.api_base}<br>
+                        <strong>Model Name:</strong> ${data.ocr_api.model}<br>
+                        <strong>API Base:</strong> ${data.ocr_api.api_base}<br>
                         <strong>Connection Status:</strong> Normal
                     `;
                 } else {
                     statusDiv.className = 'result error';
                     statusDiv.innerHTML = `
                         <strong>❌ Model Status:</strong> Not loaded<br>
-                        <strong>Status:</strong> ${data.monkey_ocr.status}<br>
-                        <strong>Suggestion:</strong> Please check ModelScope connection or install MonkeyOCR dependencies
+                        <strong>Status:</strong> ${data.ocr_api.status}<br>
+                        <strong>Suggestion:</strong> Please check ModelScope connection or install OCR dependencies
                     `;
                 }
             } catch (error) {
