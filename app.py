@@ -11,6 +11,21 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from database import init_database, extract_key_information, save_to_database, get_all_records, search_records, delete_record
 
+# PDF processing imports
+try:
+    import fitz  # PyMuPDF
+    PDF_SUPPORT = True
+except ImportError:
+    PDF_SUPPORT = False
+    print("Warning: PyMuPDF not installed. PDF processing will be disabled.")
+
+try:
+    from pdf2image import convert_from_path
+    PDF2IMAGE_SUPPORT = True
+except ImportError:
+    PDF2IMAGE_SUPPORT = False
+    print("Warning: pdf2image not installed. Alternative PDF processing will be used.")
+
 # Load environment variables
 load_dotenv()
 
@@ -82,6 +97,163 @@ def is_image_file(filename):
     """Check if file is an image"""
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in IMAGE_EXTENSIONS
+
+def is_pdf_file(filename):
+    """Check if file is a PDF"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() == 'pdf'
+
+def convert_pdf_to_images(pdf_path, output_dir):
+    """Convert PDF to images using available libraries"""
+    try:
+        images = []
+        
+        if PDF2IMAGE_SUPPORT:
+            # Method 1: Use pdf2image (requires poppler)
+            try:
+                pages = convert_from_path(pdf_path, dpi=200)
+                for i, page in enumerate(pages):
+                    image_filename = f"page_{i+1}.png"
+                    image_path = os.path.join(output_dir, image_filename)
+                    page.save(image_path, 'PNG')
+                    images.append(image_path)
+                return images, None
+            except Exception as e:
+                print(f"pdf2image failed: {e}, trying PyMuPDF...")
+        
+        if PDF_SUPPORT:
+            # Method 2: Use PyMuPDF
+            try:
+                doc = fitz.open(pdf_path)
+                for page_num in range(len(doc)):
+                    page = doc.load_page(page_num)
+                    # Render page to image
+                    mat = fitz.Matrix(2.0, 2.0)  # 2x zoom for better quality
+                    pix = page.get_pixmap(matrix=mat)
+                    image_filename = f"page_{page_num+1}.png"
+                    image_path = os.path.join(output_dir, image_filename)
+                    pix.save(image_path)
+                    images.append(image_path)
+                doc.close()
+                return images, None
+            except Exception as e:
+                return [], f"PyMuPDF conversion failed: {str(e)}"
+        
+        return [], "No PDF processing library available. Please install PyMuPDF or pdf2image."
+        
+    except Exception as e:
+        return [], f"PDF conversion failed: {str(e)}"
+
+def process_pdf_file(pdf_path, filename, output_format='json'):
+    """Process PDF file by converting to images and performing OCR"""
+    try:
+        # Create temporary directory for PDF images
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        temp_pdf_dir = os.path.join(UPLOAD_FOLDER, f"pdf_temp_{timestamp}")
+        os.makedirs(temp_pdf_dir, exist_ok=True)
+        
+        # Convert PDF to images
+        image_files, error = convert_pdf_to_images(pdf_path, temp_pdf_dir)
+        if error:
+            return None, error
+        
+        if not image_files:
+            return None, "No pages found in PDF file"
+        
+        # Create output directory for this PDF
+        pdf_name_without_ext = os.path.splitext(filename)[0]
+        output_dir = os.path.join(OUTPUT_FOLDER, f"{pdf_name_without_ext}_{timestamp}")
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Process each page
+        results = []
+        combined_text = []
+        
+        for i, image_path in enumerate(image_files):
+            try:
+                page_num = i + 1
+                page_filename = f"page_{page_num}"
+                
+                # Perform OCR on this page
+                ocr_result, model_used = perform_ocr(image_path)
+                combined_text.append(f"=== Page {page_num} ===\n{ocr_result}\n")
+                
+                # Save individual page result
+                original_output_folder = OUTPUT_FOLDER
+                globals()['OUTPUT_FOLDER'] = output_dir
+                
+                try:
+                    result_path = save_result_to_file(
+                        page_filename, 
+                        ocr_result, 
+                        f"{filename} - Page {page_num}", 
+                        model_used, 
+                        output_format
+                    )
+                    result_filename = os.path.basename(result_path)
+                finally:
+                    globals()['OUTPUT_FOLDER'] = original_output_folder
+                
+                results.append({
+                    "page_number": page_num,
+                    "result_file": result_filename,
+                    "output_format": output_format,
+                    "ocr_result": ocr_result,
+                    "model_used": model_used,
+                    "status": "success" if "failed" not in ocr_result else "failed"
+                })
+                
+            except Exception as e:
+                results.append({
+                    "page_number": i + 1,
+                    "result_file": None,
+                    "output_format": output_format,
+                    "ocr_result": f"Processing failed: {str(e)}",
+                    "model_used": "None",
+                    "status": "failed"
+                })
+        
+        # Save combined result for all pages
+        combined_ocr_text = "\n".join(combined_text)
+        original_output_folder = OUTPUT_FOLDER
+        globals()['OUTPUT_FOLDER'] = output_dir
+        
+        try:
+            combined_result_path = save_result_to_file(
+                f"{pdf_name_without_ext}_combined", 
+                combined_ocr_text, 
+                f"{filename} - All Pages", 
+                results[0]["model_used"] if results else "Unknown", 
+                output_format
+            )
+            combined_result_filename = os.path.basename(combined_result_path)
+        finally:
+            globals()['OUTPUT_FOLDER'] = original_output_folder
+        
+        # Clean up temporary directory
+        try:
+            shutil.rmtree(temp_pdf_dir)
+        except:
+            pass
+        
+        return {
+            "output_directory": os.path.basename(output_dir),
+            "total_pages": len(image_files),
+            "processed_results": results,
+            "combined_result_file": combined_result_filename,
+            "combined_ocr_text": combined_ocr_text,
+            "success_count": len([r for r in results if r["status"] == "success"]),
+            "failed_count": len([r for r in results if r["status"] == "failed"])
+        }, None
+        
+    except Exception as e:
+        # Clean up on error
+        try:
+            if 'temp_pdf_dir' in locals():
+                shutil.rmtree(temp_pdf_dir)
+        except:
+            pass
+        return None, f"PDF processing failed: {str(e)}"
 
 def extract_zip_file(zip_path, extract_to):
     """Extract ZIP file and return list of image files"""
@@ -470,6 +642,43 @@ def upload_file():
                         'success_count': batch_result['success_count'],
                         'failed_count': batch_result['failed_count'],
                         'processed_results': batch_result['processed_results']
+                    }
+                })
+            # Check if uploaded file is a PDF
+            elif file_extension == '.pdf':
+                # Check if PDF processing is available
+                if not PDF_SUPPORT and not PDF2IMAGE_SUPPORT:
+                    return jsonify({
+                        'success': False,
+                        'message': 'PDF processing not available. Please install PyMuPDF or pdf2image library.'
+                    })
+                
+                # Get output format from form data
+                output_format = request.form.get('output_format', 'json')
+                
+                # Process PDF file
+                pdf_result, error = process_pdf_file(file_path, filename, output_format)
+                
+                if error:
+                    return jsonify({
+                        'success': False,
+                        'message': f'PDF processing failed: {error}'
+                    })
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'PDF file processed successfully in {output_format.upper()} format. {pdf_result["success_count"]} pages processed, {pdf_result["failed_count"]} failed.',
+                    'file_type': 'pdf',
+                    'output_format': output_format,
+                    'uploaded_file': new_filename,
+                    'output_directory': pdf_result['output_directory'],
+                    'combined_result_file': pdf_result['combined_result_file'],
+                    'pdf_results': {
+                        'total_pages': pdf_result['total_pages'],
+                        'success_count': pdf_result['success_count'],
+                        'failed_count': pdf_result['failed_count'],
+                        'processed_results': pdf_result['processed_results'],
+                        'combined_ocr_text': pdf_result['combined_ocr_text'][:500] + '...' if len(pdf_result['combined_ocr_text']) > 500 else pdf_result['combined_ocr_text']
                     }
                 })
             else:

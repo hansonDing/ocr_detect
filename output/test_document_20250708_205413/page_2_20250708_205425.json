@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-07-08T20:54:25.985250",
+  "original_filename": "test_document.pdf - Page 2",
+  "ocr_result": "Page 2 - Additional Information\n\nCustomer Address:\n\n123 Main Street\nAnytown, ST 12345\nUnited States\n\nContact Information:\n\nPhone: (555) 123-4567\nEmail: john.smith@email.com\n\nThis is the second page of the test document.\nIt demonstrates multi-page PDF processing capabilities of the OCR system.",
+  "processing_info": {
+    "model": "OCR API",
+    "status": "success",
+    "api_endpoint": "https://api-inference.modelscope.cn/v1",
+    "model_name": "Qwen/Qwen2-VL-7B-Instruct"
+  }
+}
