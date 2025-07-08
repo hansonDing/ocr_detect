@@ -192,13 +192,19 @@ def image_to_base64(image_path):
     except Exception as e:
         raise Exception(f"Image encoding failed: {str(e)}")
 
-def ocr_with_monkey_api(image_path):
+def ocr_with_monkey_api(image_path, image_type='document'):
     """Call MonkeyOCR model using OpenAI API format"""
     try:
         if not ocr_client:
             return "MonkeyOCR client not initialized"
         
         base64_image = image_to_base64(image_path)
+        
+        # Choose prompt based on image type
+        if image_type == 'table':
+            prompt_text = "Please recognize all content in this table image and output it in a structured table format. Requirements:\n1. Identify all table headers, rows, and columns accurately\n2. Preserve the exact table structure and cell relationships\n3. Use consistent spacing or tab characters to align columns\n4. Maintain the original row order and column sequence\n5. Include all cell content including numbers, text, and symbols\n6. For merged cells, indicate the span appropriately\n7. Preserve any table formatting like borders or separators using text characters (|, -, +)\n8. Output should be readable as a plain text table that maintains the original structure\n9. Include table headers if present\n10. Ensure the output can be easily converted to CSV or Excel format"
+        else:  # document type
+            prompt_text = "Please recognize all text content in this image and output it exactly as it appears in the original image layout. Requirements:\n1. Preserve the exact spatial layout and formatting of the original image\n2. Maintain all spacing, indentation, line breaks, and alignment as shown\n3. For tables: preserve column alignment and row structure using spaces or tabs\n4. For multi-column text: maintain the column layout and reading order\n5. For titles, headings, and special formatting: preserve their visual hierarchy and positioning\n6. Keep all original punctuation, symbols, and special characters\n7. Do not add any explanatory text or formatting markers - output only the recognized content in its original layout\n8. If text appears in different sizes or styles, maintain the relative positioning but output as plain text\n9. Preserve any mathematical formulas or equations in their original format\n10. Ensure the output can be directly used to recreate the visual layout of the original document"
         
         response = ocr_client.chat.completions.create(
             model=MONKEY_OCR_MODEL,
@@ -208,7 +214,7 @@ def ocr_with_monkey_api(image_path):
                     "content": [
                         {
                             "type": "text",
-                            "text": "Please recognize all text content in this image and output it exactly as it appears in the original image layout. Requirements:\n1. Preserve the exact spatial layout and formatting of the original image\n2. Maintain all spacing, indentation, line breaks, and alignment as shown\n3. For tables: preserve column alignment and row structure using spaces or tabs\n4. For multi-column text: maintain the column layout and reading order\n5. For titles, headings, and special formatting: preserve their visual hierarchy and positioning\n6. Keep all original punctuation, symbols, and special characters\n7. Do not add any explanatory text or formatting markers - output only the recognized content in its original layout\n8. If text appears in different sizes or styles, maintain the relative positioning but output as plain text\n9. Preserve any mathematical formulas or equations in their original format\n10. Ensure the output can be directly used to recreate the visual layout of the original document"
+                            "text": prompt_text
                         },
                         {
                             "type": "image_url",
@@ -264,11 +270,11 @@ def ocr_with_basic(image_path):
     except Exception as e:
         return f"Basic image processing failed: {str(e)}"
 
-def perform_ocr(image_path):
+def perform_ocr(image_path, image_type='document'):
     """Perform OCR recognition, try different solutions by priority"""
     # Solution 1: MonkeyOCR API
     if ocr_client and ocr_status == "Connected":
-        result = ocr_with_monkey_api(image_path)
+        result = ocr_with_monkey_api(image_path, image_type)
         if "failed" not in result and "error" not in result:
             return result, "MonkeyOCR API"
     
@@ -426,11 +432,12 @@ def upload_file():
                     }
                 })
             else:
-                # Get output format from form data
+                # Get output format and image type from form data
                 output_format = request.form.get('output_format', 'json')
+                image_type = request.form.get('image_type', 'document')
                 
                 # Process single image file
-                ocr_result, model_used = perform_ocr(file_path)
+                ocr_result, model_used = perform_ocr(file_path, image_type)
                 result_path = save_result_to_file(filename_without_ext, ocr_result, filename, model_used, output_format)
                 
                 return jsonify({
