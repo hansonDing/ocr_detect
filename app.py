@@ -47,21 +47,22 @@ ocr_status = "Not initialized"
 try:
     ocr_client = OpenAI(
         api_key=OCR_API_KEY,
-    base_url=OCR_API_BASE
+        base_url=OCR_API_BASE
     )
     
     # Test connection
     try:
         models = ocr_client.models.list()
         print(f"OCR API connection successful! Available models: {[model.id for model in models.data]}")
-    ocr_status = "Connected"
-except Exception as e:
-    print(f"OCR API connection test failed: {e}")
-    ocr_status = "Failed"
-    ocr_client = None
+        ocr_status = "Connected"
+    except Exception as e:
+        print(f"OCR API connection test failed: {e}")
+        ocr_status = "Failed"
+        ocr_client = None
 except Exception as e:
     print(f"OCR client initialization failed: {e}")
     ocr_status = "Initialization failed"
+    ocr_client = None
 
 # Backup OCR initialization
 backup_ocr = None
