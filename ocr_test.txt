@@ -1,0 +1,7 @@
+Recognition Time: 2025-07-08T21:21:12.375413
+Original Filename: client_data_4.pdf - Page 1
+Recognition Model: OCR API
+Processing Status: Success
+
+Recognition Result:
+{"primary_language":"en","is_rotation_valid":true,"rotation_correction":0,"is_table":true,"is_diagram":false,"natural_text":"| Field Name       | Value                  |\n|------------------|------------------------|\n| Customer Name    | Sun Hong               |\n| Customer ID      | 1057805                |\n| Transaction ID   | 5000056583             |\n| Transaction Amount | 6651.00              |\n| Payment Date     | 2025-11-21             |\n| Document Timestamp | 2025-07-08 18:50:52   |\n| Customer Country | HK                     |"}
